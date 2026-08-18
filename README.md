@@ -96,7 +96,7 @@ If the daemon dies, records reconcile to `stopped` on restart.
 ```
 make build          # builds shedd + guest agent, codesigns (required for vz)
 bin/shedd install    # ssh config (Host shed) + authorized_keys from ~/.ssh
-bin/shedd serve      # run the daemon in the foreground
+bin/shedd            # run the daemon in the foreground (same as shedd serve)
 bin/shedd doctor     # if something is off
 ```
 

@@ -15,6 +15,10 @@ func main() {
 		Use:          "shedd",
 		Short:        "shed daemon — local microVMs over ssh",
 		SilenceUsage: true,
+		Args:         cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return serve()
+		},
 	}
 	root.AddCommand(cmdServe(), cmdInstall(), cmdDoctor())
 	if err := root.Execute(); err != nil {
