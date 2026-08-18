@@ -1,19 +1,19 @@
-# local-devexe
+# shed
 
 A local clone of [exe.dev](https://exe.dev) — the ssh-based microVM service — for one
 Mac. Real Linux microVMs booted from OCI images in about a second, managed
 entirely over ssh, with persistent disks and an HTTP front door.
 
 ```
-$ ssh devexe new box
+$ ssh shed new box
 creating box from exeuntu...
 vm box is running
-  ssh box@devexe
-  http://box.exe.localhost:8080
+  ssh box@shed
+  http://box.shed.localhost:8080
 
-$ ssh box@devexe
+$ ssh box@shed
 
-  exeuntu -- Ubuntu 24.04, devexe build
+  exeuntu -- Ubuntu 24.04, shed build
 
 dev@box:~$ echo it is a real vm with a real kernel > notes
 ```
@@ -31,12 +31,12 @@ image still works via `--image`.
 
 ## How it works
 
-One daemon (`exed`) runs three things:
+One daemon (`shedd`) runs three things:
 
 - **SSH gateway** (127.0.0.1:2222). Routing is by username, sshpiper-style:
-  user `exe` is the control plane (`ssh devexe ls`), any other username
+  user `shed` is the control plane (`ssh shed ls`), any other username
   names a VM and the session is brokered into that VM's sshd (`ssh
-  box@devexe`). Key-only auth against `~/.local/share/devexe/authorized_keys`.
+  box@shed`). Key-only auth against `~/.local/share/shed/authorized_keys`.
 - **VM manager** over Apple's Virtualization.framework (Code-Hex/vz).
   An OCI image is pulled with go-containerregistry, flattened, and streamed
   through Microsoft's pure-Go `tar2ext4` into a read-only ext4 base disk —
@@ -45,12 +45,12 @@ One daemon (`exed`) runs three things:
   ext4 data disk (`mke2fs`), joined by overlayfs at boot. The kernel is the
   Kata Containers static arm64 build (the same one Apple's `container`
   direct-boots), fetched once and cached.
-- **HTTP front door** (127.0.0.1:8080). `http://<vm>.exe.localhost:8080`
+- **HTTP front door** (127.0.0.1:8080). `http://<vm>.shed.localhost:8080`
   proxies to the VM — the smallest `EXPOSE`d port, or `share port`. VMs are
-  private by default; `ssh devexe share <vm>` prints a signed link,
+  private by default; `ssh shed share <vm>` prints a signed link,
   `share set-public` opens it up.
 
-Inside every VM, a small static Go agent (`exeguest`) rides the initramfs
+Inside every VM, a small static Go agent (`shedguest`) rides the initramfs
 as pid 1: it assembles the overlay root, DHCPs on the NAT network, installs
 your keys, serves ssh (its own embedded sshd — so even distroless images
 are ssh-able), supervises the image's ENTRYPOINT/CMD, and talks to the
@@ -73,39 +73,39 @@ If the daemon dies, records reconcile to `stopped` on restart.
 
 - Apple Silicon Mac, macOS 15+
 - Go 1.25+, Homebrew (`brew install e2fsprogs`)
-- ~600 MB one-time kernel download on first `exed serve`
+- ~600 MB one-time kernel download on first `shedd serve`
 
 ## Setup
 
 ```
-make build          # builds exed + guest agent, codesigns (required for vz)
-bin/exed install    # ssh config (Host devexe) + authorized_keys from ~/.ssh
-bin/exed serve      # run the daemon in the foreground
-bin/exed doctor     # if something is off
+make build          # builds shedd + guest agent, codesigns (required for vz)
+bin/shedd install    # ssh config (Host shed) + authorized_keys from ~/.ssh
+bin/shedd serve      # run the daemon in the foreground
+bin/shedd doctor     # if something is off
 ```
 
 ## Commands
 
 ```
-ssh devexe new [name] [--image ref] [--cpu N] [--memory MB] [--disk GB] [--no-start]
+ssh shed new [name] [--image ref] [--cpu N] [--memory MB] [--disk GB] [--no-start]
                                    # default image: exeuntu
-ssh devexe ls [-l] [--json]
-ssh devexe start|stop|restart <vm>...
-ssh devexe rm <vm>...
-ssh devexe cp <src> <dst>          # instant clone (APFS copy-on-write)
-ssh devexe rename <old> <new>
-ssh devexe share <vm>              # signed URL for a private vm
-ssh devexe share set-public|set-private <vm>
-ssh devexe share port <vm> <port>
-ssh devexe ssh-key ls|add
-ssh devexe whoami | doc | browser <vm>
+ssh shed ls [-l] [--json]
+ssh shed start|stop|restart <vm>...
+ssh shed rm <vm>...
+ssh shed cp <src> <dst>          # instant clone (APFS copy-on-write)
+ssh shed rename <old> <new>
+ssh shed share <vm>              # signed URL for a private vm
+ssh shed share set-public|set-private <vm>
+ssh shed share port <vm> <port>
+ssh shed ssh-key ls|add
+ssh shed whoami | doc | browser <vm>
 ```
 
 `scp`/`sftp` and `ssh -L` work through the gateway:
 
 ```
-scp file.txt box@devexe:/root/
-ssh -L 8080:localhost:80 web@devexe
+scp file.txt box@shed:/root/
+ssh -L 8080:localhost:80 web@shed
 ```
 
 ## Development
@@ -116,16 +116,16 @@ make build          # rebuild + codesign
 bin/spike -image alpine:latest   # standalone boot smoke test
 ```
 
-State lives in `~/.local/share/devexe/` (VM records, disks, keys), caches
-in `~/Library/Caches/devexe/` (kernel, base disks by image digest). Serial
-console of each VM: `~/.local/share/devexe/vms/<name>/serial.log`.
+State lives in `~/.local/share/shed/` (VM records, disks, keys), caches
+in `~/Library/Caches/shed/` (kernel, base disks by image digest). Serial
+console of each VM: `~/.local/share/shed/vms/<name>/serial.log`.
 
 ## Caveats
 
 - VMs die with the daemon (Virtualization.framework VMs live in-process);
   records reconcile to `stopped` on restart.
-- `*.exe.localhost` resolves in browsers; for curl use
-  `curl --resolve box.exe.localhost:8080:127.0.0.1 …`.
+- `*.shed.localhost` resolves in browsers; for curl use
+  `curl --resolve box.shed.localhost:8080:127.0.0.1 …`.
 - Images run under the agent as pid 1 — systemd in the image is not
   executed (ubuntu works fine; `systemctl` does not).
 - No TLS on the front door, no `ssh -R`, no ssh-agent forwarding yet.

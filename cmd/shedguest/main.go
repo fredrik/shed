@@ -1,4 +1,4 @@
-// exeguest is the devexe guest agent. It is built GOOS=linux GOARCH=arm64
+// shedguest is the shed guest agent. It is built GOOS=linux GOARCH=arm64
 // CGO_ENABLED=0 and packed into the initramfs as /init, where it runs as
 // pid 1: it assembles the root filesystem from the base (ro) and data (rw)
 // disks, brings up networking, serves ssh, and supervises the image
@@ -21,7 +21,7 @@ func main() {
 		return
 	}
 	if os.Getpid() != 1 {
-		fmt.Fprintln(os.Stderr, "exeguest: must run as pid 1 inside a VM")
+		fmt.Fprintln(os.Stderr, "shedguest: must run as pid 1 inside a VM")
 		os.Exit(1)
 	}
 	// Wire stdio to the console before anything else; without this,
@@ -29,7 +29,7 @@ func main() {
 	// carries a /dev/console node so this works before devtmpfs.
 	openConsole()
 	if err := boot(); err != nil {
-		fmt.Fprintf(os.Stderr, "exeguest: boot failed: %v\n", err)
+		fmt.Fprintf(os.Stderr, "shedguest: boot failed: %v\n", err)
 	}
 	powerOff()
 }
@@ -48,7 +48,7 @@ func openConsole() {
 }
 
 func boot() error {
-	fmt.Println("exeguest: starting")
+	fmt.Println("shedguest: starting")
 	mounts := []struct{ src, dst, fstype string }{
 		{"proc", "/proc", "proc"},
 		{"sysfs", "/sys", "sysfs"},
@@ -73,8 +73,8 @@ func helloMode() error {
 	if err := unix.Uname(&uts); err != nil {
 		return fmt.Errorf("uname: %w", err)
 	}
-	fmt.Printf("exeguest: hello mode, kernel %s %s\n", cstr(uts.Release[:]), cstr(uts.Machine[:]))
-	fmt.Println("exeguest: OK, powering off")
+	fmt.Printf("shedguest: hello mode, kernel %s %s\n", cstr(uts.Release[:]), cstr(uts.Machine[:]))
+	fmt.Println("shedguest: OK, powering off")
 	return nil
 }
 

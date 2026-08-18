@@ -10,12 +10,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fredrik/local-devexe/internal/backend/stubbackend"
-	"github.com/fredrik/local-devexe/internal/config"
-	"github.com/fredrik/local-devexe/internal/httpgate"
-	"github.com/fredrik/local-devexe/internal/store"
-	"github.com/fredrik/local-devexe/internal/vm"
-	"github.com/fredrik/local-devexe/internal/vm/vmspec"
+	"github.com/fredrik/shed/internal/backend/stubbackend"
+	"github.com/fredrik/shed/internal/config"
+	"github.com/fredrik/shed/internal/httpgate"
+	"github.com/fredrik/shed/internal/store"
+	"github.com/fredrik/shed/internal/vm"
+	"github.com/fredrik/shed/internal/vm/vmspec"
 )
 
 type fakeSession struct {
@@ -58,7 +58,7 @@ func newDeps(t *testing.T) Deps {
 	if err := mgr.Recover(); err != nil {
 		t.Fatal(err)
 	}
-	gate := &httpgate.Server{Addr: cfg.HTTPAddr, Suffix: "exe.localhost", Mgr: mgr}
+	gate := &httpgate.Server{Addr: cfg.HTTPAddr, Suffix: "shed.localhost", Mgr: mgr}
 	if err := gate.EnsureSecret(t.TempDir() + "/secret"); err != nil {
 		t.Fatal(err)
 	}
@@ -79,7 +79,7 @@ func TestNewLsRmFlow(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("new failed: %s / %s", out, errOut)
 	}
-	if !strings.Contains(out, "ssh box@devexe") || !strings.Contains(out, "http://box.exe.localhost:8080") {
+	if !strings.Contains(out, "ssh box@shed") || !strings.Contains(out, "http://box.shed.localhost:8080") {
 		t.Fatalf("new output missing hints:\n%s", out)
 	}
 
@@ -134,7 +134,7 @@ func TestShareFlow(t *testing.T) {
 	run(t, deps, "new web --no-start")
 
 	code, out, _ := run(t, deps, "share web")
-	if code != 0 || !strings.Contains(out, "exe_token=") {
+	if code != 0 || !strings.Contains(out, "shed_token=") {
 		t.Fatalf("share: %s", out)
 	}
 	code, out, _ = run(t, deps, "share set-public web")

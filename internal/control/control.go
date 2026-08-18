@@ -1,5 +1,5 @@
 // Package control implements the SSH control plane: the exe.dev-style
-// command surface reached via `ssh exe@devexe <command>`.
+// command surface reached via `ssh shed <command>`.
 package control
 
 import (
@@ -12,9 +12,9 @@ import (
 
 	"github.com/kballard/go-shellquote"
 
-	"github.com/fredrik/local-devexe/internal/config"
-	"github.com/fredrik/local-devexe/internal/httpgate"
-	"github.com/fredrik/local-devexe/internal/vm"
+	"github.com/fredrik/shed/internal/config"
+	"github.com/fredrik/shed/internal/httpgate"
+	"github.com/fredrik/shed/internal/vm"
 )
 
 type Deps struct {
@@ -39,7 +39,7 @@ type Session interface {
 func Run(sess Session, deps Deps) int {
 	argv, err := shellquote.Split(sess.RawCommand())
 	if err != nil {
-		fmt.Fprintf(sess.Stderr(), "devexe: parse command: %v\n", err)
+		fmt.Fprintf(sess.Stderr(), "shed: parse command: %v\n", err)
 		return 1
 	}
 	if len(argv) == 0 {
@@ -60,9 +60,9 @@ func Run(sess Session, deps Deps) int {
 func vmURL(cfg *config.Config, name string) string {
 	_, port, err := net.SplitHostPort(cfg.HTTPAddr)
 	if err != nil || port == "80" {
-		return fmt.Sprintf("http://%s.exe.localhost", name)
+		return fmt.Sprintf("http://%s.shed.localhost", name)
 	}
-	return fmt.Sprintf("http://%s.exe.localhost:%s", name, port)
+	return fmt.Sprintf("http://%s.shed.localhost:%s", name, port)
 }
 
 func printJSON(out io.Writer, v any) error {

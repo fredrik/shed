@@ -1,5 +1,5 @@
-// Package initramfs builds the tiny initramfs that boots every devexe VM:
-// an uncompressed newc cpio archive whose only contents are the exeguest
+// Package initramfs builds the tiny initramfs that boots every shed VM:
+// an uncompressed newc cpio archive whose only contents are the shedguest
 // agent as /init plus the mount points it needs.
 package initramfs
 
@@ -12,7 +12,7 @@ import (
 
 // Built by `make agent` (GOOS=linux GOARCH=arm64 CGO_ENABLED=0); gitignored.
 //
-//go:embed exeguest_linux_arm64
+//go:embed shedguest_linux_arm64
 var agentBinary []byte
 
 // Build writes the initramfs archive. Uncompressed: it avoids depending on

@@ -15,7 +15,7 @@ import (
 // returns an SSH client authenticated as root with the broker key.
 func (s *Server) connectVM(ctx context.Context, vmName string) (*gossh.Client, error) {
 	if _, ok := s.Mgr.Get(vmName); !ok {
-		return nil, fmt.Errorf("no such vm %q (create it: ssh exe@devexe new %s)", vmName, vmName)
+		return nil, fmt.Errorf("no such vm %q (create it: ssh shed new %s)", vmName, vmName)
 	}
 	startCtx, cancel := context.WithTimeout(ctx, 90*time.Second)
 	defer cancel()
@@ -47,7 +47,7 @@ func (s *Server) connectVM(ctx context.Context, vmName string) (*gossh.Client, e
 func (s *Server) brokerSession(ctx context.Context, sess gliderssh.Session, vmName string) {
 	client, err := s.connectVM(ctx, vmName)
 	if err != nil {
-		fmt.Fprintf(sess.Stderr(), "devexe: %v\r\n", err)
+		fmt.Fprintf(sess.Stderr(), "shed: %v\r\n", err)
 		sess.Exit(1)
 		return
 	}
@@ -55,7 +55,7 @@ func (s *Server) brokerSession(ctx context.Context, sess gliderssh.Session, vmNa
 
 	cs, err := client.NewSession()
 	if err != nil {
-		fmt.Fprintf(sess.Stderr(), "devexe: vm session: %v\r\n", err)
+		fmt.Fprintf(sess.Stderr(), "shed: vm session: %v\r\n", err)
 		sess.Exit(1)
 		return
 	}
@@ -71,7 +71,7 @@ func (s *Server) brokerSession(ctx context.Context, sess gliderssh.Session, vmNa
 	if isPty {
 		modes := gossh.TerminalModes{}
 		if err := cs.RequestPty(ptyReq.Term, ptyReq.Window.Height, ptyReq.Window.Width, modes); err != nil {
-			fmt.Fprintf(sess.Stderr(), "devexe: pty: %v\r\n", err)
+			fmt.Fprintf(sess.Stderr(), "shed: pty: %v\r\n", err)
 			sess.Exit(1)
 			return
 		}
@@ -92,7 +92,7 @@ func (s *Server) brokerSession(ctx context.Context, sess gliderssh.Session, vmNa
 		err = cs.Shell()
 	}
 	if err != nil {
-		fmt.Fprintf(sess.Stderr(), "devexe: start session: %v\r\n", err)
+		fmt.Fprintf(sess.Stderr(), "shed: start session: %v\r\n", err)
 		sess.Exit(1)
 		return
 	}
@@ -119,7 +119,7 @@ func (s *Server) brokerSubsystem(ctx context.Context, sess gliderssh.Session, vm
 	client, err := s.connectVM(ctx, vmName)
 	if err != nil {
 		log.Printf("sshgate: subsystem %s → %s: connect: %v", subsystem, vmName, err)
-		fmt.Fprintf(sess.Stderr(), "devexe: %v\r\n", err)
+		fmt.Fprintf(sess.Stderr(), "shed: %v\r\n", err)
 		sess.Exit(1)
 		return
 	}
@@ -153,7 +153,7 @@ func (s *Server) brokerSubsystem(ctx context.Context, sess gliderssh.Session, vm
 	}
 	if err := cs.RequestSubsystem(subsystem); err != nil {
 		log.Printf("sshgate: subsystem %s → %s: request: %v", subsystem, vmName, err)
-		fmt.Fprintf(sess.Stderr(), "devexe: subsystem %s: %v\r\n", subsystem, err)
+		fmt.Fprintf(sess.Stderr(), "shed: subsystem %s: %v\r\n", subsystem, err)
 		sess.Exit(1)
 		return
 	}
@@ -171,7 +171,7 @@ func (s *Server) brokerSubsystem(ctx context.Context, sess gliderssh.Session, vm
 func (s *Server) handleDirectTCPIP(srv *gliderssh.Server, conn *gossh.ServerConn, newChan gossh.NewChannel, ctx gliderssh.Context) {
 	vmName := ctx.User()
 	if ControlUsers[vmName] {
-		newChan.Reject(gossh.Prohibited, "port forwarding works on vm sessions (ssh -L ... <vm>@devexe)")
+		newChan.Reject(gossh.Prohibited, "port forwarding works on vm sessions (ssh -L ... <vm>@shed)")
 		return
 	}
 	var p struct {

@@ -66,7 +66,7 @@ func networkUp(ctx context.Context) (net.IP, error) {
 		writeResolvConf(dns)
 	}
 
-	fmt.Printf("exeguest: eth0 %s via dhcp\n", ip)
+	fmt.Printf("shedguest: eth0 %s via dhcp\n", ip)
 	return ip, nil
 }
 

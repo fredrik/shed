@@ -8,7 +8,7 @@ import (
 
 	"golang.org/x/sys/unix"
 
-	"github.com/fredrik/local-devexe/internal/vm/vmspec"
+	"github.com/fredrik/shed/internal/vm/vmspec"
 )
 
 // Clone copies a VM: the data disk is an APFS clonefile (instant,
@@ -105,7 +105,7 @@ func (m *Manager) Rename(ctx context.Context, oldName, newName string) error {
 		return fmt.Errorf("vm %q is busy (%s)", oldName, e.busy)
 	}
 	if e.rec.State == vmspec.StateRunning || e.rec.State == vmspec.StateStarting {
-		return fmt.Errorf("vm %q is running — stop it first: ssh devexe stop %s", oldName, oldName)
+		return fmt.Errorf("vm %q is running — stop it first: ssh shed stop %s", oldName, oldName)
 	}
 	if err := os.Rename(m.st.VMDir(oldName), m.st.VMDir(newName)); err != nil {
 		return err

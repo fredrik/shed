@@ -29,7 +29,7 @@ func startSSHD(authorizedKeys []string, preferredUser string) error {
 	for _, line := range authorizedKeys {
 		key, _, _, _, err := gossh.ParseAuthorizedKey([]byte(line))
 		if err != nil {
-			fmt.Printf("exeguest: skipping bad authorized key: %v\n", err)
+			fmt.Printf("shedguest: skipping bad authorized key: %v\n", err)
 			continue
 		}
 		allowed = append(allowed, key)
@@ -74,21 +74,21 @@ func startSSHD(authorizedKeys []string, preferredUser string) error {
 	}
 	go func() {
 		if err := server.Serve(tcpLn); err != nil {
-			fmt.Printf("exeguest: sshd (tcp) exited: %v\n", err)
+			fmt.Printf("shedguest: sshd (tcp) exited: %v\n", err)
 		}
 	}()
 
 	vsockLn, err := vsock.Listen(sshVsockPort, nil)
 	if err != nil {
-		fmt.Printf("exeguest: vsock ssh listener unavailable: %v\n", err)
+		fmt.Printf("shedguest: vsock ssh listener unavailable: %v\n", err)
 	} else {
 		go func() {
 			if err := server.Serve(vsockLn); err != nil {
-				fmt.Printf("exeguest: sshd (vsock) exited: %v\n", err)
+				fmt.Printf("shedguest: sshd (vsock) exited: %v\n", err)
 			}
 		}()
 	}
-	fmt.Println("exeguest: sshd listening on tcp :22 and vsock :22")
+	fmt.Println("shedguest: sshd listening on tcp :22 and vsock :22")
 	return nil
 }
 

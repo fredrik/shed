@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fredrik/local-devexe/internal/vsockproto"
+	"github.com/fredrik/shed/internal/vsockproto"
 )
 
 // startWorkload supervises the image's ENTRYPOINT/CMD the way exe.dev runs
@@ -32,14 +32,14 @@ func startWorkload(cfg *vsockproto.Config) {
 func superviseWorkload(argv, env []string, dir string) {
 	backoff := time.Second
 	for {
-		fmt.Printf("exeguest: starting workload: %s\n", strings.Join(argv, " "))
+		fmt.Printf("shedguest: starting workload: %s\n", strings.Join(argv, " "))
 		cmd := exec.Command(argv[0], argv[1:]...)
 		cmd.Env = env
 		cmd.Dir = dir
 		cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
 		start := time.Now()
 		err := cmd.Run()
-		fmt.Printf("exeguest: workload exited after %s: %v\n", time.Since(start).Round(time.Second), err)
+		fmt.Printf("shedguest: workload exited after %s: %v\n", time.Since(start).Round(time.Second), err)
 		if time.Since(start) > time.Minute {
 			backoff = time.Second
 		} else if backoff < 30*time.Second {

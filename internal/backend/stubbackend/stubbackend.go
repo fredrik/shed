@@ -9,8 +9,8 @@ import (
 	"net"
 	"sync"
 
-	"github.com/fredrik/local-devexe/internal/backend"
-	"github.com/fredrik/local-devexe/internal/vm/vmspec"
+	"github.com/fredrik/shed/internal/backend"
+	"github.com/fredrik/shed/internal/vm/vmspec"
 )
 
 type Backend struct {

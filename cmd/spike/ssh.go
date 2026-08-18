@@ -13,7 +13,7 @@ import (
 	"github.com/Code-Hex/vz/v3"
 	gossh "golang.org/x/crypto/ssh"
 
-	"github.com/fredrik/local-devexe/internal/vsockproto"
+	"github.com/fredrik/shed/internal/vsockproto"
 )
 
 // sshRoundTrip waits for the guest's ready report on vsock, sshes to the

@@ -28,7 +28,7 @@ func resolveSessionTarget(preferred string) {
 	if preferred != "" && preferred != "root" {
 		if u, err := lookupUser(preferred); err == nil {
 			sessionTarget = u
-			fmt.Printf("exeguest: ssh sessions run as %s\n", u.Name)
+			fmt.Printf("shedguest: ssh sessions run as %s\n", u.Name)
 			return
 		}
 	}

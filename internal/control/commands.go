@@ -11,15 +11,15 @@ import (
 	"github.com/spf13/cobra"
 	gossh "golang.org/x/crypto/ssh"
 
-	"github.com/fredrik/local-devexe/internal/keys"
-	"github.com/fredrik/local-devexe/internal/vm"
-	"github.com/fredrik/local-devexe/internal/vm/vmspec"
+	"github.com/fredrik/shed/internal/keys"
+	"github.com/fredrik/shed/internal/vm"
+	"github.com/fredrik/shed/internal/vm/vmspec"
 )
 
 func newRoot(deps Deps) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "devexe",
-		Short:         "devexe — local microVMs over ssh (an exe.dev clone)",
+		Use:           "shed",
+		Short:         "shed — local microVMs over ssh (an exe.dev clone)",
 		SilenceUsage:  true,
 		SilenceErrors: false,
 		CompletionOptions: cobra.CompletionOptions{
@@ -40,7 +40,7 @@ func newRoot(deps Deps) *cobra.Command {
 		cmdShare(deps),
 		cmdCp(deps),
 		cmdRename(deps),
-		stub("shelley", "shelley — exe.dev's web agent; not part of the local clone (try: ssh <vm>@devexe, then run claude)"),
+		stub("shelley", "shelley — exe.dev's web agent; not part of the local clone (try: ssh <vm>@shed, then run claude)"),
 	)
 	return root
 }
@@ -82,7 +82,7 @@ func cmdNew(deps Deps) *cobra.Command {
 				return printJSON(cmd.OutOrStdout(), rec)
 			}
 			fmt.Fprintf(cmd.OutOrStdout(), "vm %s is %s\n", rec.Spec.Name, rec.State)
-			fmt.Fprintf(cmd.OutOrStdout(), "  ssh %s@devexe\n", rec.Spec.Name)
+			fmt.Fprintf(cmd.OutOrStdout(), "  ssh %s@shed\n", rec.Spec.Name)
 			fmt.Fprintf(cmd.OutOrStdout(), "  %s\n", vmURL(deps.Cfg, rec.Spec.Name))
 			return nil
 		},
@@ -112,7 +112,7 @@ func cmdLs(deps Deps) *cobra.Command {
 				return printJSON(cmd.OutOrStdout(), vms)
 			}
 			if len(vms) == 0 {
-				fmt.Fprintln(cmd.OutOrStdout(), "no vms yet — create one: ssh exe@devexe new")
+				fmt.Fprintln(cmd.OutOrStdout(), "no vms yet — create one: ssh shed new")
 				return nil
 			}
 			headers := []string{"NAME", "IMAGE", "STATE", "URL"}
@@ -223,7 +223,7 @@ func cmdCp(deps Deps) *cobra.Command {
 				rec, _ = deps.Mgr.Get(rec.Spec.Name)
 			}
 			fmt.Fprintf(cmd.OutOrStdout(), "vm %s is %s (cloned from %s)\n", rec.Spec.Name, rec.State, args[0])
-			fmt.Fprintf(cmd.OutOrStdout(), "  ssh %s@devexe\n", rec.Spec.Name)
+			fmt.Fprintf(cmd.OutOrStdout(), "  ssh %s@shed\n", rec.Spec.Name)
 			fmt.Fprintf(cmd.OutOrStdout(), "  %s\n", vmURL(deps.Cfg, rec.Spec.Name))
 			return nil
 		},
@@ -241,7 +241,7 @@ func cmdRename(deps Deps) *cobra.Command {
 			if err := deps.Mgr.Rename(cmd.Context(), args[0], args[1]); err != nil {
 				return err
 			}
-			fmt.Fprintf(cmd.OutOrStdout(), "vm %s is now %s (ssh %s@devexe)\n", args[0], args[1], args[1])
+			fmt.Fprintf(cmd.OutOrStdout(), "vm %s is now %s (ssh %s@shed)\n", args[0], args[1], args[1])
 			return nil
 		},
 	}
@@ -254,7 +254,7 @@ func cmdWhoami(deps Deps) *cobra.Command {
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			pubs, _ := keys.LoadAuthorizedKeys(deps.AuthorizedKeysPath)
-			fmt.Fprintf(cmd.OutOrStdout(), "%s (local devexe, %d authorized keys)\n", deps.User, len(pubs))
+			fmt.Fprintf(cmd.OutOrStdout(), "%s (local shed, %d authorized keys)\n", deps.User, len(pubs))
 			return nil
 		},
 	}
@@ -313,7 +313,7 @@ func cmdBrowser(deps Deps) *cobra.Command {
 func cmdDoc(deps Deps) *cobra.Command {
 	return &cobra.Command{
 		Use:   "doc",
-		Short: "How devexe works",
+		Short: "How shed works",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			fmt.Fprint(cmd.OutOrStdout(), docText)
@@ -322,7 +322,7 @@ func cmdDoc(deps Deps) *cobra.Command {
 	}
 }
 
-const docText = `devexe — local microVMs over ssh (an exe.dev clone)
+const docText = `shed — local microVMs over ssh (an exe.dev clone)
 
 Every vm is a real Linux microVM (Virtualization.framework) booted from an
 OCI image in about a second. The disk persists; stopped vms cost nothing
@@ -331,16 +331,16 @@ but disk. Your plan is a pool of cpu/memory/disk shared by all vms.
 The default image is exeuntu: Ubuntu 24.04 with common tools preinstalled,
 baked locally on first use (any OCI image works via --image).
 
-  ssh devexe new mybox                 create + start (exeuntu)
-  ssh mybox@devexe                     shell in as dev (passwordless sudo)
-  ssh devexe new web --image nginx     any OCI image works
-  ssh devexe ls -l                     fleet + pool usage
-  ssh devexe stop mybox                release cpu/memory
-  ssh devexe cp mybox mybox2           instant copy-on-write clone
-  ssh devexe rm mybox                  delete, including disk
+  ssh shed new mybox                 create + start (exeuntu)
+  ssh mybox@shed                     shell in as dev (passwordless sudo)
+  ssh shed new web --image nginx     any OCI image works
+  ssh shed ls -l                     fleet + pool usage
+  ssh shed stop mybox                release cpu/memory
+  ssh shed cp mybox mybox2           instant copy-on-write clone
+  ssh shed rm mybox                  delete, including disk
 
-HTTP: each vm is reachable at http://<name>.exe.localhost:8080 — private
-by default; ssh devexe share <name> prints an access link.
+HTTP: each vm is reachable at http://<name>.shed.localhost:8080 — private
+by default; ssh shed share <name> prints an access link.
 `
 
 func stub(name, msg string) *cobra.Command {

@@ -1,4 +1,4 @@
-// Package vzbackend boots devexe microVMs with Apple's Virtualization
+// Package vzbackend boots shed microVMs with Apple's Virtualization
 // framework via Code-Hex/vz. Binaries importing it must be signed with the
 // com.apple.security.virtualization entitlement (make handles this).
 package vzbackend
@@ -13,9 +13,9 @@ import (
 
 	"github.com/Code-Hex/vz/v3"
 
-	"github.com/fredrik/local-devexe/internal/backend"
-	"github.com/fredrik/local-devexe/internal/vm/vmspec"
-	"github.com/fredrik/local-devexe/internal/vsockproto"
+	"github.com/fredrik/shed/internal/backend"
+	"github.com/fredrik/shed/internal/vm/vmspec"
+	"github.com/fredrik/shed/internal/vsockproto"
 )
 
 type Backend struct {

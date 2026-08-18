@@ -13,11 +13,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/fredrik/local-devexe/internal/backend"
-	"github.com/fredrik/local-devexe/internal/config"
-	"github.com/fredrik/local-devexe/internal/store"
-	"github.com/fredrik/local-devexe/internal/vm/vmspec"
-	"github.com/fredrik/local-devexe/internal/vsockproto"
+	"github.com/fredrik/shed/internal/backend"
+	"github.com/fredrik/shed/internal/config"
+	"github.com/fredrik/shed/internal/store"
+	"github.com/fredrik/shed/internal/vm/vmspec"
+	"github.com/fredrik/shed/internal/vsockproto"
 )
 
 // Preparer turns an image reference into boot artifacts. Implemented by

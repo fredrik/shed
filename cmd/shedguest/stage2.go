@@ -64,7 +64,7 @@ func runStage2() error {
 	if err := ctl.ready(ip.String(), cfg.Hostname); err != nil {
 		return fmt.Errorf("report ready: %w", err)
 	}
-	fmt.Println("exeguest: ready")
+	fmt.Println("shedguest: ready")
 	return ctl.waitShutdown()
 }
 
@@ -73,11 +73,11 @@ func runStage2() error {
 func mountRuntimeFilesystems() {
 	os.MkdirAll("/dev/pts", 0o755)
 	if err := unix.Mount("devpts", "/dev/pts", "devpts", 0, "gid=5,mode=620,ptmxmode=666"); err != nil {
-		fmt.Printf("exeguest: mount devpts: %v\n", err)
+		fmt.Printf("shedguest: mount devpts: %v\n", err)
 	}
 	os.MkdirAll("/dev/shm", 0o1777)
 	if err := unix.Mount("tmpfs", "/dev/shm", "tmpfs", 0, "mode=1777"); err != nil {
-		fmt.Printf("exeguest: mount /dev/shm: %v\n", err)
+		fmt.Printf("shedguest: mount /dev/shm: %v\n", err)
 	}
 	os.MkdirAll("/run", 0o755)
 	unix.Mount("tmpfs", "/run", "tmpfs", 0, "mode=755")
@@ -85,7 +85,7 @@ func mountRuntimeFilesystems() {
 }
 
 func printOSRelease() {
-	cmd := exec.Command("/bin/sh", "-c", `. /etc/os-release 2>/dev/null; echo "exeguest: root is ${PRETTY_NAME:-unknown}"`)
+	cmd := exec.Command("/bin/sh", "-c", `. /etc/os-release 2>/dev/null; echo "shedguest: root is ${PRETTY_NAME:-unknown}"`)
 	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
 	cmd.Run()
 }

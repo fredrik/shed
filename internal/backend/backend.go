@@ -7,8 +7,8 @@ import (
 	"context"
 	"net"
 
-	"github.com/fredrik/local-devexe/internal/vm/vmspec"
-	"github.com/fredrik/local-devexe/internal/vsockproto"
+	"github.com/fredrik/shed/internal/vm/vmspec"
+	"github.com/fredrik/shed/internal/vsockproto"
 )
 
 type Backend interface {

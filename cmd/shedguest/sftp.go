@@ -14,7 +14,7 @@ import (
 
 // agentPath is where stage 1 parks the agent binary in the real root, so
 // it can be re-executed after switch_root.
-const agentPath = "/.exe/agent"
+const agentPath = "/.shed/agent"
 
 // handleSFTP serves the sftp subsystem, which also covers modern scp
 // (OpenSSH ≥ 9 rides scp over sftp). Root sessions are served in-process;
@@ -30,7 +30,7 @@ func handleSFTP(s gliderssh.Session) {
 		}
 		defer srv.Close()
 		if err := srv.Serve(); err != nil && err != io.EOF {
-			fmt.Printf("exeguest: sftp serve: %v\n", err)
+			fmt.Printf("shedguest: sftp serve: %v\n", err)
 		}
 		return
 	}

@@ -17,17 +17,17 @@ import (
 	"time"
 
 	"github.com/Code-Hex/vz/v3"
-	"github.com/fredrik/local-devexe/internal/diskfs"
-	"github.com/fredrik/local-devexe/internal/image"
-	"github.com/fredrik/local-devexe/internal/initramfs"
+	"github.com/fredrik/shed/internal/diskfs"
+	"github.com/fredrik/shed/internal/image"
+	"github.com/fredrik/shed/internal/initramfs"
 )
 
 func main() {
 	home, _ := os.UserHomeDir()
-	kernel := flag.String("kernel", filepath.Join(home, "Library/Caches/devexe/kernel/3.28.0/Image"), "uncompressed arm64 kernel Image")
+	kernel := flag.String("kernel", filepath.Join(home, "Library/Caches/shed/kernel/3.28.0/Image"), "uncompressed arm64 kernel Image")
 	cmdline := flag.String("cmdline", "console=hvc0 rdinit=/init", "kernel command line")
 	imageRef := flag.String("image", "", "OCI image to boot (empty = diskless hello mode)")
-	workdir := flag.String("workdir", filepath.Join(home, "Library/Caches/devexe/spike"), "scratch dir for disks")
+	workdir := flag.String("workdir", filepath.Join(home, "Library/Caches/shed/spike"), "scratch dir for disks")
 	reset := flag.Bool("reset", false, "delete the data disk first (fresh first boot)")
 	timeout := flag.Duration("timeout", 120*time.Second, "boot timeout")
 	flag.Parse()
@@ -38,7 +38,7 @@ func main() {
 }
 
 func run(kernel, cmdline, imageRef, workdir string, reset bool, timeout time.Duration) error {
-	initrd := filepath.Join(os.TempDir(), "devexe-spike-initramfs.cpio")
+	initrd := filepath.Join(os.TempDir(), "shed-spike-initramfs.cpio")
 	if err := initramfs.WriteTo(initrd); err != nil {
 		return fmt.Errorf("build initramfs: %w", err)
 	}

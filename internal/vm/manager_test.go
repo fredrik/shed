@@ -9,10 +9,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fredrik/local-devexe/internal/backend/stubbackend"
-	"github.com/fredrik/local-devexe/internal/config"
-	"github.com/fredrik/local-devexe/internal/store"
-	"github.com/fredrik/local-devexe/internal/vm/vmspec"
+	"github.com/fredrik/shed/internal/backend/stubbackend"
+	"github.com/fredrik/shed/internal/config"
+	"github.com/fredrik/shed/internal/store"
+	"github.com/fredrik/shed/internal/vm/vmspec"
 )
 
 type fakePrep struct{}

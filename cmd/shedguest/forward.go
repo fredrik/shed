@@ -10,7 +10,7 @@ import (
 
 	"github.com/mdlayher/vsock"
 
-	"github.com/fredrik/local-devexe/internal/vsockproto"
+	"github.com/fredrik/shed/internal/vsockproto"
 )
 
 // startForwarder accepts host connections on the well-known vsock forward
@@ -19,14 +19,14 @@ import (
 func startForwarder() {
 	ln, err := vsock.Listen(vsockproto.ForwardPort, nil)
 	if err != nil {
-		fmt.Printf("exeguest: forwarder unavailable: %v\n", err)
+		fmt.Printf("shedguest: forwarder unavailable: %v\n", err)
 		return
 	}
 	go func() {
 		for {
 			conn, err := ln.Accept()
 			if err != nil {
-				fmt.Printf("exeguest: forwarder accept: %v\n", err)
+				fmt.Printf("shedguest: forwarder accept: %v\n", err)
 				return
 			}
 			go forwardConn(conn)

@@ -2,5 +2,5 @@
 *.img
 *.raw
 serial.log
-# built by `make agent`, embedded into exed at build time
-/internal/initramfs/exeguest_linux_arm64
+# built by `make agent`, embedded into shedd at build time
+/internal/initramfs/shedguest_linux_arm64

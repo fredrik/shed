@@ -1,6 +1,6 @@
-// Package httpgate is the HTTP front door: <vm>.exe.localhost routes to a
+// Package httpgate is the HTTP front door: <vm>.shed.localhost routes to a
 // port inside that VM, exe.dev-style. VMs are private by default — the
-// gate wants a signed token (from `ssh devexe share <vm>`) which it then
+// gate wants a signed token (from `ssh shed share <vm>`) which it then
 // pins as a cookie; `share set-public` opens a VM up.
 package httpgate
 
@@ -20,8 +20,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/fredrik/local-devexe/internal/vm"
-	"github.com/fredrik/local-devexe/internal/vm/vmspec"
+	"github.com/fredrik/shed/internal/vm"
+	"github.com/fredrik/shed/internal/vm/vmspec"
 )
 
 // DefaultPort is where the proxy points when the image exposes nothing
@@ -30,7 +30,7 @@ const DefaultPort = 8000
 
 type Server struct {
 	Addr   string
-	Suffix string // e.g. "exe.localhost"
+	Suffix string // e.g. "shed.localhost"
 	Mgr    *vm.Manager
 	secret []byte
 
@@ -54,7 +54,7 @@ func (s *Server) EnsureSecret(path string) error {
 // Token returns the share token for a VM name.
 func (s *Server) Token(name string) string {
 	mac := hmac.New(sha256.New, s.secret)
-	mac.Write([]byte("devexe-share:" + name))
+	mac.Write([]byte("shed-share:" + name))
 	return hex.EncodeToString(mac.Sum(nil))[:32]
 }
 
@@ -100,7 +100,7 @@ func (s *Server) handle(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		s.page(w, http.StatusNotFound, "no such vm",
 			fmt.Sprintf("There is no vm named %q.", name),
-			fmt.Sprintf("Create it: <code>ssh devexe new %s</code>", name))
+			fmt.Sprintf("Create it: <code>ssh shed new %s</code>", name))
 		return
 	}
 
@@ -111,7 +111,7 @@ func (s *Server) handle(w http.ResponseWriter, r *http.Request) {
 	if rec.State != vmspec.StateRunning {
 		s.page(w, http.StatusBadGateway, "vm is "+string(rec.State),
 			fmt.Sprintf("vm %q is %s.", name, rec.State),
-			fmt.Sprintf("Start it: <code>ssh devexe start %s</code>", name))
+			fmt.Sprintf("Start it: <code>ssh shed start %s</code>", name))
 		return
 	}
 	run, ok := s.Mgr.Running(name)
@@ -136,29 +136,29 @@ func (s *Server) handle(w http.ResponseWriter, r *http.Request) {
 		ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
 			s.page(w, http.StatusBadGateway, "nothing listening",
 				fmt.Sprintf("vm %q is running but nothing answered on port %d.", name, port),
-				fmt.Sprintf("Change the port: <code>ssh devexe share port %s &lt;port&gt;</code>", name))
+				fmt.Sprintf("Change the port: <code>ssh shed share port %s &lt;port&gt;</code>", name))
 		},
 	}
 	proxy.ServeHTTP(w, r)
 }
 
 // authorized enforces private-by-default. It accepts: public VMs, a valid
-// exe_token query parameter (then pins a cookie and redirects to strip the
+// shed_token query parameter (then pins a cookie and redirects to strip the
 // token), or the pinned cookie.
 func (s *Server) authorized(w http.ResponseWriter, r *http.Request, rec vmspec.VM) bool {
 	if rec.Share.Public {
 		return true
 	}
 	name := rec.Spec.Name
-	cookieName := "devexe_auth_" + name
+	cookieName := "shed_auth_" + name
 
-	if token := r.URL.Query().Get("exe_token"); token != "" {
+	if token := r.URL.Query().Get("shed_token"); token != "" {
 		if s.validToken(name, token) {
 			http.SetCookie(w, &http.Cookie{
 				Name: cookieName, Value: token, Path: "/", HttpOnly: true, SameSite: http.SameSiteLaxMode,
 			})
 			q := r.URL.Query()
-			q.Del("exe_token")
+			q.Del("shed_token")
 			clean := *r.URL
 			clean.RawQuery = q.Encode()
 			http.Redirect(w, r, clean.String(), http.StatusFound)
@@ -170,14 +170,14 @@ func (s *Server) authorized(w http.ResponseWriter, r *http.Request, rec vmspec.V
 	}
 	s.page(w, http.StatusForbidden, "private vm",
 		fmt.Sprintf("vm %q is private.", name),
-		fmt.Sprintf("Get a link: <code>ssh devexe share %s</code> — or make it public: <code>ssh devexe share set-public %s</code>", name, name))
+		fmt.Sprintf("Get a link: <code>ssh shed share %s</code> — or make it public: <code>ssh shed share set-public %s</code>", name, name))
 	return false
 }
 
 func (s *Server) landing(w http.ResponseWriter, r *http.Request) {
-	s.page(w, http.StatusOK, "devexe",
-		"This is the devexe HTTP front door.",
-		"Each vm is reachable at <code>http://&lt;name&gt;."+s.hostWithPort(s.Suffix)+"</code>. List yours: <code>ssh devexe ls</code>")
+	s.page(w, http.StatusOK, "shed",
+		"This is the shed HTTP front door.",
+		"Each vm is reachable at <code>http://&lt;name&gt;."+s.hostWithPort(s.Suffix)+"</code>. List yours: <code>ssh shed ls</code>")
 }
 
 // targetPort picks the forwarded port: share override, else smallest
@@ -199,7 +199,7 @@ func (s *Server) page(w http.ResponseWriter, code int, title, lead, hint string)
 }
 
 const pageHTML = `<!doctype html>
-<html><head><meta charset="utf-8"><title>%s · devexe</title>
+<html><head><meta charset="utf-8"><title>%s · shed</title>
 <style>
 body{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;background:#101418;color:#d8dee6;display:grid;place-items:center;min-height:100vh;margin:0}
 main{max-width:34rem;padding:2rem}
@@ -212,7 +212,7 @@ code{background:#1c242c;color:#7fd0a0;padding:.15rem .4rem;border-radius:4px}
 
 // URLWithToken builds the tokened share URL for a VM.
 func (s *Server) URLWithToken(name string) string {
-	return fmt.Sprintf("http://%s?exe_token=%s", s.hostWithPort(name+"."+s.Suffix), url.QueryEscape(s.Token(name)))
+	return fmt.Sprintf("http://%s?shed_token=%s", s.hostWithPort(name+"."+s.Suffix), url.QueryEscape(s.Token(name)))
 }
 
 // URL is the plain URL for a VM.

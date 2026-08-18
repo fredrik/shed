@@ -12,13 +12,13 @@ import (
 	gliderssh "github.com/gliderlabs/ssh"
 	gossh "golang.org/x/crypto/ssh"
 
-	"github.com/fredrik/local-devexe/internal/control"
-	"github.com/fredrik/local-devexe/internal/keys"
-	"github.com/fredrik/local-devexe/internal/vm"
+	"github.com/fredrik/shed/internal/control"
+	"github.com/fredrik/shed/internal/keys"
+	"github.com/fredrik/shed/internal/vm"
 )
 
 // ControlUsers are the reserved usernames for the control plane.
-var ControlUsers = map[string]bool{"exe": true, "devexe": true}
+var ControlUsers = map[string]bool{"shed": true}
 
 type Server struct {
 	Addr               string
@@ -39,7 +39,7 @@ func (s *Server) ListenAndServe() error {
 		SubsystemHandlers: map[string]gliderssh.SubsystemHandler{
 			"sftp": func(sess gliderssh.Session) {
 				if ControlUsers[sess.User()] {
-					fmt.Fprintf(sess.Stderr(), "devexe: sftp works on vm sessions (sftp <vm>@devexe)\r\n")
+					fmt.Fprintf(sess.Stderr(), "shed: sftp works on vm sessions (sftp <vm>@shed)\r\n")
 					sess.Exit(1)
 					return
 				}

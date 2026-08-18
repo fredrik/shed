@@ -14,13 +14,13 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/fredrik/local-devexe/internal/vsockproto"
+	"github.com/fredrik/shed/internal/vsockproto"
 )
 
 // runBakeScript provisions the image-to-be. Output goes to the console so
 // the serial log tells the story if it fails.
 func runBakeScript(script string) error {
-	fmt.Println("exeguest: bake script starting")
+	fmt.Println("shedguest: bake script starting")
 	cmd := exec.Command("/bin/sh", "-c", script)
 	cmd.Env = []string{
 		"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
@@ -31,7 +31,7 @@ func runBakeScript(script string) error {
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("bake script: %w", err)
 	}
-	fmt.Println("exeguest: bake script done")
+	fmt.Println("shedguest: bake script done")
 	return nil
 }
 
@@ -50,10 +50,10 @@ func startBakeServer() error {
 		}
 		defer conn.Close()
 		if err := writeRootTar(conn); err != nil {
-			fmt.Printf("exeguest: bake tar: %v\n", err)
+			fmt.Printf("shedguest: bake tar: %v\n", err)
 			return
 		}
-		fmt.Println("exeguest: bake tar sent")
+		fmt.Println("shedguest: bake tar sent")
 	}()
 	return nil
 }
@@ -67,7 +67,7 @@ var bakeSkip = map[string]bool{
 	"/dev":                       true,
 	"/run":                       true,
 	"/tmp":                       true,
-	"/.exe":                      true,
+	"/.shed":                      true,
 	"/lost+found":                true,
 	"/etc/hostname":              true,
 	"/etc/resolv.conf":           true,

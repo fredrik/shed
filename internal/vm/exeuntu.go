@@ -11,13 +11,13 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/fredrik/local-devexe/internal/backend"
-	"github.com/fredrik/local-devexe/internal/diskfs"
-	"github.com/fredrik/local-devexe/internal/vm/vmspec"
-	"github.com/fredrik/local-devexe/internal/vsockproto"
+	"github.com/fredrik/shed/internal/backend"
+	"github.com/fredrik/shed/internal/diskfs"
+	"github.com/fredrik/shed/internal/vm/vmspec"
+	"github.com/fredrik/shed/internal/vsockproto"
 )
 
-// exeuntu is devexe's default image, in the spirit of exe.dev's: Ubuntu
+// exeuntu is shed's default image, in the spirit of exe.dev's: Ubuntu
 // with the tools you expect already installed. It is baked locally, once:
 // a throwaway VM boots the upstream Ubuntu image, runs the recipe below,
 // and streams its merged rootfs back to become a cached base image.
@@ -49,7 +49,7 @@ curl -LsSf https://astral.sh/uv/install.sh | \
 mkdir -p /etc/skel/.config/mise /etc/skel/.config/uv
 cat >> /etc/skel/.bashrc <<'RC'
 
-# devexe: mise manages per-project tools
+# shed: mise manages per-project tools
 if command -v mise >/dev/null 2>&1; then
   eval "$(mise activate bash)"
 fi
@@ -84,11 +84,11 @@ su - dev -c 'uv python install --default 3.14 || uv python install 3.14'
 
 cat > /etc/motd <<'MOTD'
 
-  exeuntu -- Ubuntu 24.04, devexe build
+  exeuntu -- Ubuntu 24.04, shed build
 
   This microVM is yours: persistent disk, apt works, sudo is free.
-  Its web port is proxied at http://<vmname>.exe.localhost:8080
-  Manage the fleet: ssh devexe help
+  Its web port is proxied at http://<vmname>.shed.localhost:8080
+  Manage the fleet: ssh shed help
 
 MOTD
 `
@@ -125,7 +125,7 @@ func (m *Manager) ensureExeuntu(ctx context.Context, progress io.Writer) (vmspec
 
 	fmt.Fprintf(progress, "baking the exeuntu image (first time only, a few minutes)...\n")
 
-	bakeDir, err := os.MkdirTemp("", "devexe-bake-*")
+	bakeDir, err := os.MkdirTemp("", "shed-bake-*")
 	if err != nil {
 		return vmspec.ImageInfo{}, "", err
 	}

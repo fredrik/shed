@@ -74,6 +74,6 @@ func ValidName(name string) error {
 // MAC derives the VM's stable, locally administered unicast MAC from its
 // name, so leases and ARP entries survive restarts and are debuggable.
 func (s Spec) MAC() net.HardwareAddr {
-	sum := sha256.Sum256([]byte("devexe-mac:" + s.Name))
+	sum := sha256.Sum256([]byte("shed-mac:" + s.Name))
 	return net.HardwareAddr{0x06, sum[0], sum[1], sum[2], sum[3], sum[4]}
 }

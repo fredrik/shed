@@ -1,4 +1,4 @@
-module github.com/fredrik/local-devexe
+module github.com/fredrik/shed
 
 go 1.25.6
 

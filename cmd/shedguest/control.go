@@ -10,7 +10,7 @@ import (
 
 	"github.com/mdlayher/vsock"
 
-	"github.com/fredrik/local-devexe/internal/vsockproto"
+	"github.com/fredrik/shed/internal/vsockproto"
 )
 
 type controlConn struct {
@@ -63,15 +63,15 @@ func (c *controlConn) waitShutdown() error {
 	for {
 		var msg vsockproto.Message
 		if err := c.dec.Decode(&msg); err != nil {
-			fmt.Printf("exeguest: control channel lost (%v), powering off\n", err)
+			fmt.Printf("shedguest: control channel lost (%v), powering off\n", err)
 			return nil
 		}
 		switch msg.Type {
 		case vsockproto.TypeShutdown:
-			fmt.Println("exeguest: shutdown requested by host")
+			fmt.Println("shedguest: shutdown requested by host")
 			return nil
 		default:
-			fmt.Printf("exeguest: unknown control message %q\n", msg.Type)
+			fmt.Printf("shedguest: unknown control message %q\n", msg.Type)
 		}
 	}
 }

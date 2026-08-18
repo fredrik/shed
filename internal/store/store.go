@@ -1,5 +1,5 @@
 // Package store owns the daemon's state directory: one JSON document per
-// VM, written atomically, plus an exclusive lock so only one exed runs.
+// VM, written atomically, plus an exclusive lock so only one shedd runs.
 package store
 
 import (
@@ -10,7 +10,7 @@ import (
 
 	"golang.org/x/sys/unix"
 
-	"github.com/fredrik/local-devexe/internal/vm/vmspec"
+	"github.com/fredrik/shed/internal/vm/vmspec"
 )
 
 type Store struct {
@@ -26,13 +26,13 @@ func Open(root string) (*Store, error) {
 	if err := os.MkdirAll(filepath.Join(root, "keys"), 0o700); err != nil {
 		return nil, err
 	}
-	fd, err := unix.Open(filepath.Join(root, "exed.lock"), unix.O_CREAT|unix.O_RDWR, 0o644)
+	fd, err := unix.Open(filepath.Join(root, "shedd.lock"), unix.O_CREAT|unix.O_RDWR, 0o644)
 	if err != nil {
 		return nil, err
 	}
 	if err := unix.Flock(fd, unix.LOCK_EX|unix.LOCK_NB); err != nil {
 		unix.Close(fd)
-		return nil, fmt.Errorf("another exed is already running (lock %s held)", filepath.Join(root, "exed.lock"))
+		return nil, fmt.Errorf("another shedd is already running (lock %s held)", filepath.Join(root, "shedd.lock"))
 	}
 	return &Store{Root: root, lockFd: fd}, nil
 }

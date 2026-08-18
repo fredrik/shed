@@ -9,9 +9,9 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/fredrik/local-devexe/internal/diskfs"
-	"github.com/fredrik/local-devexe/internal/image"
-	"github.com/fredrik/local-devexe/internal/vm/vmspec"
+	"github.com/fredrik/shed/internal/diskfs"
+	"github.com/fredrik/shed/internal/image"
+	"github.com/fredrik/shed/internal/vm/vmspec"
 )
 
 // OCIPreparer is the real Preparer: pulls images with go-containerregistry

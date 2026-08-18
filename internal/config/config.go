@@ -35,11 +35,11 @@ type Config struct {
 }
 
 func StateDir() string {
-	if dir := os.Getenv("DEVEXE_STATE_DIR"); dir != "" {
+	if dir := os.Getenv("SHED_STATE_DIR"); dir != "" {
 		return dir
 	}
 	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".local", "share", "devexe")
+	return filepath.Join(home, ".local", "share", "shed")
 }
 
 func Load() (*Config, error) {
@@ -60,7 +60,7 @@ func Load() (*Config, error) {
 			DiskGB:   100,
 		},
 		StateDir: stateDir,
-		CacheDir: filepath.Join(home, "Library", "Caches", "devexe"),
+		CacheDir: filepath.Join(home, "Library", "Caches", "shed"),
 	}
 
 	path := filepath.Join(stateDir, "config.toml")

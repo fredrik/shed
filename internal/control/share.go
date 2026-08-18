@@ -6,7 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/fredrik/local-devexe/internal/vm/vmspec"
+	"github.com/fredrik/shed/internal/vm/vmspec"
 )
 
 func cmdShare(deps Deps) *cobra.Command {
@@ -47,7 +47,7 @@ func cmdShare(deps Deps) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			fmt.Fprintf(cmd.OutOrStdout(), "vm %s is now private; share a link: ssh devexe share %s\n", rec.Spec.Name, rec.Spec.Name)
+			fmt.Fprintf(cmd.OutOrStdout(), "vm %s is now private; share a link: ssh shed share %s\n", rec.Spec.Name, rec.Spec.Name)
 			return nil
 		},
 	})
@@ -84,7 +84,7 @@ func cmdShare(deps Deps) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			fmt.Fprintf(cmd.OutOrStdout(), "recorded %s; on local devexe everyone with the link is let in — send them: ssh devexe share %s\n", args[1], args[0])
+			fmt.Fprintf(cmd.OutOrStdout(), "recorded %s; on local shed everyone with the link is let in — send them: ssh shed share %s\n", args[1], args[0])
 			return nil
 		},
 	})

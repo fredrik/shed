@@ -1,5 +1,5 @@
 // Package vsockproto defines the JSON-lines protocol spoken between the
-// host daemon and the exeguest agent over virtio-vsock.
+// host daemon and the shedguest agent over virtio-vsock.
 //
 // Handshake: the guest dials the host (CID 2) on Port after assembling its
 // root, sends hello, receives its Config, applies it (hostname, network,

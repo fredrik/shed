@@ -9,13 +9,13 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/fredrik/local-devexe/internal/config"
+	"github.com/fredrik/shed/internal/config"
 )
 
 func cmdDoctor() *cobra.Command {
 	return &cobra.Command{
 		Use:   "doctor",
-		Short: "Check that this machine can run devexe",
+		Short: "Check that this machine can run shed",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return doctor()
@@ -59,14 +59,14 @@ func doctor() error {
 
 	kernelPath := filepath.Join(cfg.CacheDir, "kernel")
 	_, kerr := os.Stat(kernelPath)
-	check("guest kernel cached", kerr == nil, "downloaded on first `exed serve` (~600 MB)")
+	check("guest kernel cached", kerr == nil, "downloaded on first `shedd serve` (~600 MB)")
 
 	for _, addr := range []string{cfg.SSHAddr, cfg.HTTPAddr} {
 		ln, err := net.Listen("tcp", addr)
 		if err == nil {
 			ln.Close()
 		}
-		check("port free: "+addr, err == nil, "another process (or exed) is listening")
+		check("port free: "+addr, err == nil, "another process (or shedd) is listening")
 	}
 
 	if !ok {
