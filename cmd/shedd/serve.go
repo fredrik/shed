@@ -118,12 +118,13 @@ func serve() error {
 		},
 	}
 
-	errCh := make(chan error, 2)
+	errCh := make(chan error, 3)
 	go func() { errCh <- gate.ListenAndServe() }()
+	go func() { errCh <- gate.ServeSocket(cfg.ControlSocket()) }()
 	go func() { errCh <- httpGate.ListenAndServe() }()
 	go mgr.AutostartAll(context.Background())
 
-	log.Printf("shed ready: ssh shed (or ssh -p 2222 shed@127.0.0.1)")
+	log.Printf("shed ready: ssh shed, or locally: bin/shed ls")
 
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)

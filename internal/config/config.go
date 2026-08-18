@@ -34,6 +34,12 @@ type Config struct {
 	CacheDir string `toml:"-"`
 }
 
+// ControlSocket is the unix socket where the daemon serves the control
+// plane to the local shed client (no ssh keys; file mode is the auth).
+func (c *Config) ControlSocket() string {
+	return filepath.Join(c.StateDir, "control.sock")
+}
+
 func StateDir() string {
 	if dir := os.Getenv("SHED_STATE_DIR"); dir != "" {
 		return dir

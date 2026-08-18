@@ -1,13 +1,17 @@
-// Package sshgate is the daemon's front door on 127.0.0.1:2222. It routes
-// by SSH username, sshpiper-style: the reserved user "exe" reaches the
-// control plane; any other username names a VM and the session is brokered
-// into that VM's sshd.
+// Package sshgate is the daemon's front door. It routes by SSH username,
+// sshpiper-style: the reserved user "shed" reaches the control plane; any
+// other username names a VM and the session is brokered into that VM's
+// sshd. The gateway serves two listeners with the same handler: TCP
+// 127.0.0.1:2222 with public-key auth, and a unix socket with no client
+// auth for the local shed client (the socket's file mode is the auth).
 package sshgate
 
 import (
 	"context"
 	"fmt"
 	"log"
+	"net"
+	"os"
 
 	gliderssh "github.com/gliderlabs/ssh"
 	gossh "golang.org/x/crypto/ssh"
@@ -28,14 +32,41 @@ type Server struct {
 	Mgr                *vm.Manager
 	ControlDeps        control.Deps
 
-	srv *gliderssh.Server
+	srv  *gliderssh.Server // TCP, public-key auth
+	sock *gliderssh.Server // unix socket, no client auth
 }
 
 func (s *Server) ListenAndServe() error {
-	s.srv = &gliderssh.Server{
-		Addr:             s.Addr,
-		Handler:          s.handle,
-		PublicKeyHandler: s.auth,
+	s.srv = s.newServer(true)
+	s.srv.Addr = s.Addr
+	log.Printf("sshgate: listening on %s", s.Addr)
+	return s.srv.ListenAndServe()
+}
+
+// ServeSocket serves the gateway on a unix socket with client auth
+// disabled: being able to open the 0600 socket is the auth. gliderlabs
+// sets NoClientAuth when a server has no auth handlers, which is why the
+// socket needs its own server value rather than a second listener.
+func (s *Server) ServeSocket(path string) error {
+	if fi, err := os.Lstat(path); err == nil && fi.Mode()&os.ModeSocket != 0 {
+		os.Remove(path) // stale socket from a previous run
+	}
+	l, err := net.Listen("unix", path)
+	if err != nil {
+		return err
+	}
+	if err := os.Chmod(path, 0o600); err != nil {
+		l.Close()
+		return err
+	}
+	s.sock = s.newServer(false)
+	log.Printf("sshgate: listening on %s", path)
+	return s.sock.Serve(l)
+}
+
+func (s *Server) newServer(withAuth bool) *gliderssh.Server {
+	srv := &gliderssh.Server{
+		Handler: s.handle,
 		SubsystemHandlers: map[string]gliderssh.SubsystemHandler{
 			"sftp": func(sess gliderssh.Session) {
 				if ControlUsers[sess.User()] {
@@ -51,16 +82,23 @@ func (s *Server) ListenAndServe() error {
 			"direct-tcpip": s.handleDirectTCPIP,
 		},
 	}
-	s.srv.AddHostKey(s.HostSigner)
-	log.Printf("sshgate: listening on %s", s.Addr)
-	return s.srv.ListenAndServe()
+	if withAuth {
+		srv.PublicKeyHandler = s.auth
+	}
+	srv.AddHostKey(s.HostSigner)
+	return srv
 }
 
 func (s *Server) Close() error {
-	if s.srv != nil {
-		return s.srv.Close()
+	var firstErr error
+	for _, srv := range []*gliderssh.Server{s.srv, s.sock} {
+		if srv != nil {
+			if err := srv.Close(); err != nil && firstErr == nil {
+				firstErr = err
+			}
+		}
 	}
-	return nil
+	return firstErr
 }
 
 func (s *Server) auth(ctx gliderssh.Context, key gliderssh.PublicKey) bool {
