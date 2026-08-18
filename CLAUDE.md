@@ -13,7 +13,6 @@ obvious from the code.
 - `make test` — unit tests; builds the linux guest agent first because
   internal/initramfs embeds it (`go test ./...` alone fails on a clean tree).
 - `bin/shedd serve` — foreground daemon (ssh gateway :2222, http :8080).
-- `cmd/spike` — standalone image→boot→ssh smoke test; kept for debugging.
 
 ## Testing over ssh in sandboxed sessions
 

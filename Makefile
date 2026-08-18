@@ -4,7 +4,7 @@
 BIN := bin
 AGENT := internal/initramfs/shedguest_linux_arm64
 
-.PHONY: build spike agent test integration clean
+.PHONY: build agent test integration clean
 
 build: agent
 	go build -o $(BIN)/shedd ./cmd/shedd
@@ -12,10 +12,6 @@ build: agent
 
 agent:
 	GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o $(AGENT) ./cmd/shedguest
-
-spike: agent
-	go build -o $(BIN)/spike ./cmd/spike
-	codesign --entitlements vz.entitlements -f -s - $(BIN)/spike
 
 test: agent
 	go test ./...

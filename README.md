@@ -128,7 +128,6 @@ ssh -L 8080:localhost:80 web@shed
 ```
 make test           # unit tests (no VMs, no signing needed)
 make build          # rebuild + codesign
-bin/spike -image alpine:latest   # standalone boot smoke test
 ```
 
 State lives in `~/.local/share/shed/` (VM records, disks, keys), caches
