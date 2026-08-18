@@ -123,8 +123,12 @@ func handleSession(s gliderssh.Session) {
 		cmd.Args = []string{"-" + filepath.Base(u.Shell)}
 	}
 	cmd.Dir = u.Home
+	// User-local bins and mise shims lead the PATH so managed tools work
+	// in non-interactive exec too, where .bashrc never runs.
+	path := u.Home + "/.local/bin:" + u.Home + "/.local/share/mise/shims" +
+		":/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 	cmd.Env = append(cmd.Env,
-		"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+		"PATH="+path,
 		"HOME="+u.Home,
 		"USER="+u.Name,
 		"LOGNAME="+u.Name,

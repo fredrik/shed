@@ -19,11 +19,15 @@ dev@box:~$ echo it is a real vm with a real kernel > notes
 ```
 
 The default image is **exeuntu** (in the spirit of exe.dev's): Ubuntu 24.04
-with git, curl, vim, tmux, htop, ripgrep, jq and friends preinstalled. It is
-baked locally the first time it's used — a throwaway VM boots upstream
-`ubuntu:24.04`, runs the recipe, and streams its rootfs back into a cached
-base image (~20 s). Upstream digest changes or recipe edits rebake on next
-use. Any OCI image still works via `--image`.
+with git, curl, vim, tmux, htop, ripgrep, jq and friends preinstalled, a
+`dev` login user with passwordless sudo, and a real toolchain: `mise` and
+`uv` system-wide in /usr/local/bin, node 24 pre-warmed via mise, and
+python 3.14 (uv-managed) as dev's default alongside the apt `python3`
+baseline. It is baked locally the first time it's used — a throwaway VM
+boots upstream `ubuntu:24.04`, runs the recipe, and streams its rootfs
+back into a cached base image (a minute or so). Upstream digest changes or
+recipe edits rebake on next use, and superseded bakes are pruned. Any OCI
+image still works via `--image`.
 
 ## How it works
 

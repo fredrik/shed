@@ -34,8 +34,38 @@ apt-get update
 apt-get install -y --no-install-recommends \
   ca-certificates curl wget git vim nano less htop tmux \
   ripgrep jq unzip zip file rsync openssh-client sudo \
-  iproute2 iputils-ping dnsutils netcat-openbsd
+  iproute2 iputils-ping dnsutils netcat-openbsd python3
 apt-get clean
+
+# Toolchain managers, system-wide so scripts and cron see them without
+# shell activation: the image owns the machine, mise owns the work.
+curl -fsSL https://mise.run | MISE_INSTALL_PATH=/usr/local/bin/mise sh
+curl -LsSf https://astral.sh/uv/install.sh | \
+  UV_INSTALL_DIR=/usr/local/bin UV_NO_MODIFY_PATH=1 INSTALLER_NO_MODIFY_PATH=1 sh
+
+# Skel dotfiles (written before useradd so the dev user inherits them):
+# mise activation for interactive shells, project configs under $HOME
+# trusted, node 24 as the global tool, uv tuned for ext4.
+mkdir -p /etc/skel/.config/mise /etc/skel/.config/uv
+cat >> /etc/skel/.bashrc <<'RC'
+
+# devexe: mise manages per-project tools
+if command -v mise >/dev/null 2>&1; then
+  eval "$(mise activate bash)"
+fi
+RC
+cat > /etc/skel/.config/mise/config.toml <<'TOML'
+[settings]
+trusted_config_paths = ["~"]
+
+[tools]
+node = "24"
+TOML
+cat > /etc/skel/.config/uv/uv.toml <<'TOML'
+python-preference = "managed"
+link-mode = "hardlink"
+compile-bytecode = true
+TOML
 
 # The default login user: uid 1000, bash, passwordless sudo. The stock
 # ubuntu user makes way so uid 1000 stays conventional.
@@ -44,6 +74,13 @@ useradd -m -u 1000 -s /bin/bash dev
 usermod -aG sudo dev
 echo 'dev ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/dev
 chmod 440 /etc/sudoers.d/dev
+
+# Pre-warm the global toolchain into the image (bake-time cost, zero
+# boot-time cost): node 24 from the seeded mise config, and a uv-managed
+# python 3.14 as dev's default python/python3 (system python3 from apt
+# stays the baseline at /usr/bin/python3).
+su - dev -c 'mise install'
+su - dev -c 'uv python install --default 3.14 || uv python install 3.14'
 
 cat > /etc/motd <<'MOTD'
 
@@ -146,7 +183,23 @@ func (m *Manager) ensureExeuntu(ctx context.Context, progress io.Writer) (vmspec
 	shutdownCtx, cancel2 := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel2()
 	run.Shutdown(shutdownCtx)
+
+	pruneOldExeuntu(filepath.Dir(imgPath), tag)
 	return info, imgPath, nil
+}
+
+// pruneOldExeuntu removes superseded exeuntu base images. Safe: VMs always
+// resolve "exeuntu" to the current bake on start, so older ones are
+// orphaned the moment a new bake lands.
+func pruneOldExeuntu(dir, keepTag string) {
+	matches, _ := filepath.Glob(filepath.Join(dir, "exeuntu-*.img"))
+	for _, m := range matches {
+		if m == filepath.Join(dir, "exeuntu-"+keepTag+".img") {
+			continue
+		}
+		os.Remove(m)
+		os.Remove(m + ".json")
+	}
 }
 
 func loadImageInfo(path string) (vmspec.ImageInfo, error) {
