@@ -1,0 +1,221 @@
+// Package httpgate is the HTTP front door: <vm>.exe.localhost routes to a
+// port inside that VM, exe.dev-style. VMs are private by default — the
+// gate wants a signed token (from `ssh devexe share <vm>`) which it then
+// pins as a cookie; `share set-public` opens a VM up.
+package httpgate
+
+import (
+	"context"
+	"crypto/hmac"
+	"crypto/rand"
+	"crypto/sha256"
+	"crypto/subtle"
+	"encoding/hex"
+	"fmt"
+	"log"
+	"net"
+	"net/http"
+	"net/http/httputil"
+	"net/url"
+	"os"
+	"strings"
+
+	"github.com/fredrik/local-devexe/internal/vm"
+	"github.com/fredrik/local-devexe/internal/vm/vmspec"
+)
+
+// DefaultPort is where the proxy points when the image exposes nothing
+// (exe.dev's convention).
+const DefaultPort = 8000
+
+type Server struct {
+	Addr   string
+	Suffix string // e.g. "exe.localhost"
+	Mgr    *vm.Manager
+	secret []byte
+
+	srv *http.Server
+}
+
+// EnsureSecret loads or creates the HMAC key used to sign share tokens.
+func (s *Server) EnsureSecret(path string) error {
+	data, err := os.ReadFile(path)
+	if err == nil && len(data) >= 32 {
+		s.secret = data
+		return nil
+	}
+	s.secret = make([]byte, 32)
+	if _, err := rand.Read(s.secret); err != nil {
+		return err
+	}
+	return os.WriteFile(path, s.secret, 0o600)
+}
+
+// Token returns the share token for a VM name.
+func (s *Server) Token(name string) string {
+	mac := hmac.New(sha256.New, s.secret)
+	mac.Write([]byte("devexe-share:" + name))
+	return hex.EncodeToString(mac.Sum(nil))[:32]
+}
+
+func (s *Server) validToken(name, token string) bool {
+	want := s.Token(name)
+	return subtle.ConstantTimeCompare([]byte(want), []byte(token)) == 1
+}
+
+func (s *Server) ListenAndServe() error {
+	s.srv = &http.Server{Addr: s.Addr, Handler: http.HandlerFunc(s.handle)}
+	log.Printf("httpgate: listening on %s (http://<vm>.%s)", s.Addr, s.hostWithPort(s.Suffix))
+	return s.srv.ListenAndServe()
+}
+
+func (s *Server) Close() error {
+	if s.srv != nil {
+		return s.srv.Close()
+	}
+	return nil
+}
+
+func (s *Server) hostWithPort(host string) string {
+	_, port, err := net.SplitHostPort(s.Addr)
+	if err != nil || port == "80" {
+		return host
+	}
+	return host + ":" + port
+}
+
+func (s *Server) handle(w http.ResponseWriter, r *http.Request) {
+	host := r.Host
+	if h, _, err := net.SplitHostPort(host); err == nil {
+		host = h
+	}
+
+	if host == s.Suffix || !strings.HasSuffix(host, "."+s.Suffix) {
+		s.landing(w, r)
+		return
+	}
+	name := strings.TrimSuffix(host, "."+s.Suffix)
+
+	rec, ok := s.Mgr.Get(name)
+	if !ok {
+		s.page(w, http.StatusNotFound, "no such vm",
+			fmt.Sprintf("There is no vm named %q.", name),
+			fmt.Sprintf("Create it: <code>ssh devexe new %s</code>", name))
+		return
+	}
+
+	if !s.authorized(w, r, rec) {
+		return
+	}
+
+	if rec.State != vmspec.StateRunning {
+		s.page(w, http.StatusBadGateway, "vm is "+string(rec.State),
+			fmt.Sprintf("vm %q is %s.", name, rec.State),
+			fmt.Sprintf("Start it: <code>ssh devexe start %s</code>", name))
+		return
+	}
+	run, ok := s.Mgr.Running(name)
+	if !ok {
+		s.page(w, http.StatusBadGateway, "vm not reachable", "The vm stopped just now.", "")
+		return
+	}
+
+	port := targetPort(rec)
+	proxy := &httputil.ReverseProxy{
+		Rewrite: func(pr *httputil.ProxyRequest) {
+			pr.Out.URL.Scheme = "http"
+			pr.Out.URL.Host = fmt.Sprintf("guest:%d", port)
+			pr.Out.Host = r.Host
+			pr.SetXForwarded()
+		},
+		Transport: &http.Transport{
+			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+				return run.DialGuest(ctx, port)
+			},
+		},
+		ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
+			s.page(w, http.StatusBadGateway, "nothing listening",
+				fmt.Sprintf("vm %q is running but nothing answered on port %d.", name, port),
+				fmt.Sprintf("Change the port: <code>ssh devexe share port %s &lt;port&gt;</code>", name))
+		},
+	}
+	proxy.ServeHTTP(w, r)
+}
+
+// authorized enforces private-by-default. It accepts: public VMs, a valid
+// exe_token query parameter (then pins a cookie and redirects to strip the
+// token), or the pinned cookie.
+func (s *Server) authorized(w http.ResponseWriter, r *http.Request, rec vmspec.VM) bool {
+	if rec.Share.Public {
+		return true
+	}
+	name := rec.Spec.Name
+	cookieName := "devexe_auth_" + name
+
+	if token := r.URL.Query().Get("exe_token"); token != "" {
+		if s.validToken(name, token) {
+			http.SetCookie(w, &http.Cookie{
+				Name: cookieName, Value: token, Path: "/", HttpOnly: true, SameSite: http.SameSiteLaxMode,
+			})
+			q := r.URL.Query()
+			q.Del("exe_token")
+			clean := *r.URL
+			clean.RawQuery = q.Encode()
+			http.Redirect(w, r, clean.String(), http.StatusFound)
+			return false
+		}
+	}
+	if c, err := r.Cookie(cookieName); err == nil && s.validToken(name, c.Value) {
+		return true
+	}
+	s.page(w, http.StatusForbidden, "private vm",
+		fmt.Sprintf("vm %q is private.", name),
+		fmt.Sprintf("Get a link: <code>ssh devexe share %s</code> — or make it public: <code>ssh devexe share set-public %s</code>", name, name))
+	return false
+}
+
+func (s *Server) landing(w http.ResponseWriter, r *http.Request) {
+	s.page(w, http.StatusOK, "devexe",
+		"This is the devexe HTTP front door.",
+		"Each vm is reachable at <code>http://&lt;name&gt;."+s.hostWithPort(s.Suffix)+"</code>. List yours: <code>ssh devexe ls</code>")
+}
+
+// targetPort picks the forwarded port: share override, else smallest
+// exposed TCP port, else the exe.dev default.
+func targetPort(rec vmspec.VM) int {
+	if rec.Share.Port > 0 {
+		return rec.Share.Port
+	}
+	if len(rec.Image.ExposedPorts) > 0 {
+		return rec.Image.ExposedPorts[0]
+	}
+	return DefaultPort
+}
+
+func (s *Server) page(w http.ResponseWriter, code int, title, lead, hint string) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(code)
+	fmt.Fprintf(w, pageHTML, title, title, lead, hint)
+}
+
+const pageHTML = `<!doctype html>
+<html><head><meta charset="utf-8"><title>%s · devexe</title>
+<style>
+body{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;background:#101418;color:#d8dee6;display:grid;place-items:center;min-height:100vh;margin:0}
+main{max-width:34rem;padding:2rem}
+h1{font-size:1.2rem;margin:0 0 .75rem}
+p{line-height:1.5;margin:.4rem 0;color:#9aa7b4}
+code{background:#1c242c;color:#7fd0a0;padding:.15rem .4rem;border-radius:4px}
+</style></head>
+<body><main><h1>▲ %s</h1><p>%s</p><p>%s</p></main></body></html>
+`
+
+// URLWithToken builds the tokened share URL for a VM.
+func (s *Server) URLWithToken(name string) string {
+	return fmt.Sprintf("http://%s?exe_token=%s", s.hostWithPort(name+"."+s.Suffix), url.QueryEscape(s.Token(name)))
+}
+
+// URL is the plain URL for a VM.
+func (s *Server) URL(name string) string {
+	return fmt.Sprintf("http://%s", s.hostWithPort(name+"."+s.Suffix))
+}
