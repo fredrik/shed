@@ -3,12 +3,16 @@ package control
 import (
 	"bytes"
 	"context"
+	"crypto/ed25519"
+	"crypto/rand"
 	"encoding/json"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	gossh "golang.org/x/crypto/ssh"
 
 	"github.com/fredrik/shed/internal/backend/stubbackend"
 	"github.com/fredrik/shed/internal/config"
@@ -148,6 +152,29 @@ func TestShareFlow(t *testing.T) {
 	code, out, _ = run(t, deps, "share ls web")
 	if code != 0 || !strings.Contains(out, "public") || !strings.Contains(out, "3000") {
 		t.Fatalf("share ls: %s", out)
+	}
+}
+
+func TestSSHKeyAddFromStdin(t *testing.T) {
+	deps := newDeps(t)
+	_, priv, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	signer, err := gossh.NewSignerFromKey(priv)
+	if err != nil {
+		t.Fatal(err)
+	}
+	line := string(gossh.MarshalAuthorizedKey(signer.PublicKey()))
+
+	sess := &fakeSession{cmd: "ssh-key add -"}
+	sess.in.WriteString(line)
+	if code := Run(sess, deps); code != 0 {
+		t.Fatalf("add from stdin: %s", sess.err.String())
+	}
+	saved, err := os.ReadFile(deps.AuthorizedKeysPath)
+	if err != nil || !strings.Contains(string(saved), strings.TrimSpace(line)) {
+		t.Fatalf("authorized_keys: %q err=%v", saved, err)
 	}
 }
 

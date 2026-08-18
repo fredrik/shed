@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"fmt"
+	"io"
 	"math/big"
 	"strings"
 	"time"
@@ -282,10 +283,18 @@ func cmdSSHKey(deps Deps) *cobra.Command {
 	})
 	c.AddCommand(&cobra.Command{
 		Use:   "add <authorized-keys-line>",
-		Short: "Authorize a public key (also delivered to new vm boots)",
+		Short: "Authorize a public key (also delivered to new vm boots); - reads stdin",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			line := strings.TrimSpace(args[0])
+			raw := args[0]
+			if raw == "-" {
+				b, err := io.ReadAll(cmd.InOrStdin())
+				if err != nil {
+					return err
+				}
+				raw = string(b)
+			}
+			line := strings.TrimSpace(raw)
 			if _, _, _, _, err := gossh.ParseAuthorizedKey([]byte(line)); err != nil {
 				return fmt.Errorf("not a valid public key: %w", err)
 			}
@@ -342,6 +351,10 @@ baked locally on first use (any OCI image works via --image).
 
 HTTP: each vm is reachable at http://<name>.shed.localhost:8080 — private
 by default; ssh shed share <name> prints an access link.
+
+Locally, bin/shed runs the same commands over the daemon's unix socket —
+no keys involved (shed ls, shed new mybox, cat k.pub | shed ssh-key add -).
+Interactive shells still go over ssh.
 `
 
 func stub(name, msg string) *cobra.Command {
