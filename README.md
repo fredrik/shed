@@ -20,40 +20,35 @@ dev@box:~$ echo it is a real vm with a real kernel > notes
 
 ## Introduction to shed
 
-shed is the machine shed behind your Mac: a place to keep any number of
-small Linux computers — cheap to make, comfortable to live in for months,
-and nothing to mourn when you throw one away. It takes the exe.dev idea —
-creating a computer should feel like creating a file, not provisioning a
-server — and runs it entirely on your own hardware. No cloud, no account,
-no meter running.
+shed keeps a pile of small Linux machines behind your Mac. The idea comes
+from exe.dev: creating a computer should be about as cheap as creating a
+file. shed does the same thing but entirely on your own hardware, so there
+is no account and nothing metered.
 
-Every box in the shed is a real virtual machine, not a container: its own
-kernel, its own init, its own disk, hardware-isolated by Apple's
-hypervisor. That makes a shed vm the right room for work you don't want
-loose on your Mac — a coding agent with root and free rein, a `curl | sh`
-you'd rather regret elsewhere, a service that wants to own port 80 and
-write everywhere. Inside the vm anything goes; your Mac's disk and
-processes are simply out of reach.
+Each machine is a real VM on Apple's hypervisor, with its own kernel,
+init, and disk — not a container. That's the point: it's where you put
+work you don't want running loose on your Mac. A coding agent with root, a
+`curl | sh` you don't quite trust, a service that wants port 80. Whatever
+happens inside stays inside; the VM can't see your Mac's disk or
+processes.
 
-The economics are deliberately boring. Your machine's spare capacity is a
-pool of cpu, memory, and disk; running vms borrow from it and stopped vms
-cost nothing but their disk, so keeping ten half-finished experiments
-around is normal, not hoarding. Everything is addressed by name: `ssh
-box@shed` is a shell (booting the vm first if it's asleep), `ssh shed cp
-box box2` forks the whole machine in a couple of seconds, and
-`http://box.shed.localhost:8080` is whatever box is serving. There is no
-GUI and no YAML — the entire interface is the ssh you already have.
+VMs are cheap enough that you don't have to be tidy. A stopped VM costs
+nothing but its disk, and ssh boots it again in about a second, so it's
+fine to have ten half-finished experiments sitting in `ls`. Everything is
+addressed by name: `ssh box@shed` opens a shell, `ssh shed cp box box2`
+clones the whole machine in a couple of seconds, and
+`http://box.shed.localhost:8080` reaches whatever box is serving. There is
+no GUI and no YAML; the interface is ssh.
 
-The default image is **exeuntu** (in the spirit of exe.dev's): Ubuntu 24.04
-with git, curl, vim, tmux, htop, ripgrep, jq and friends preinstalled, a
-`dev` login user with passwordless sudo, and a real toolchain: `mise` and
-`uv` system-wide in /usr/local/bin, node 24 pre-warmed via mise, and
-python 3.14 (uv-managed) as dev's default alongside the apt `python3`
-baseline. It is baked locally the first time it's used — a throwaway VM
-boots upstream `ubuntu:24.04`, runs the recipe, and streams its rootfs
-back into a cached base image (a minute or so). Upstream digest changes or
-recipe edits rebake on next use, and superseded bakes are pruned. Any OCI
-image still works via `--image`.
+The default image is exeuntu (after exe.dev's own): Ubuntu 24.04 with the
+usual tools installed (git, curl, vim, tmux, htop, ripgrep, jq), a `dev`
+user with passwordless sudo, plus mise and uv in /usr/local/bin, node 24
+via mise, and python 3.14 (uv-managed) as dev's default next to the apt
+`python3`. It's baked locally the first time you use it: a throwaway VM
+boots upstream `ubuntu:24.04`, runs the recipe, and its rootfs becomes the
+cached base image. Takes about a minute, rebakes when the upstream digest
+or the recipe changes, and old bakes are pruned. Any other OCI image works
+via `--image`.
 
 ## How it works
 
