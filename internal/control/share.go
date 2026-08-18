@@ -6,6 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/fredrik/shed/internal/httpgate"
 	"github.com/fredrik/shed/internal/vm/vmspec"
 )
 
@@ -101,7 +102,7 @@ func cmdShare(deps Deps) *cobra.Command {
 			if rec.Share.Public {
 				visibility = "public"
 			}
-			fmt.Fprintf(cmd.OutOrStdout(), "%s: %s, forwards to port %d\n", rec.Spec.Name, visibility, effectivePort(rec))
+			fmt.Fprintf(cmd.OutOrStdout(), "%s: %s, forwards to port %d\n", rec.Spec.Name, visibility, httpgate.TargetPort(rec))
 			for _, e := range rec.Share.Emails {
 				fmt.Fprintf(cmd.OutOrStdout(), "  shared with %s\n", e)
 			}
@@ -109,14 +110,4 @@ func cmdShare(deps Deps) *cobra.Command {
 		},
 	})
 	return c
-}
-
-func effectivePort(rec vmspec.VM) int {
-	if rec.Share.Port > 0 {
-		return rec.Share.Port
-	}
-	if len(rec.Image.ExposedPorts) > 0 {
-		return rec.Image.ExposedPorts[0]
-	}
-	return 8000
 }

@@ -1,6 +1,4 @@
 /bin/
 *.img
-*.raw
-serial.log
 # built by `make agent`, embedded into shedd at build time
 /internal/initramfs/shedguest_linux_arm64

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"net"
 	"os"
@@ -45,7 +46,7 @@ func doctor() error {
 	signed := false
 	if exe != "" {
 		out, err := exec.Command("codesign", "-d", "--entitlements", "-", "--xml", exe).CombinedOutput()
-		signed = err == nil && containsBytes(out, []byte("com.apple.security.virtualization"))
+		signed = err == nil && bytes.Contains(out, []byte("com.apple.security.virtualization"))
 	}
 	check("binary signed with virtualization", signed, "build with `make build`, not `go build`")
 
@@ -73,17 +74,4 @@ func doctor() error {
 		return fmt.Errorf("some checks failed")
 	}
 	return nil
-}
-
-func containsBytes(haystack, needle []byte) bool {
-	return len(needle) == 0 || (len(haystack) >= len(needle) && searchBytes(haystack, needle))
-}
-
-func searchBytes(h, n []byte) bool {
-	for i := 0; i+len(n) <= len(h); i++ {
-		if string(h[i:i+len(n)]) == string(n) {
-			return true
-		}
-	}
-	return false
 }

@@ -134,6 +134,7 @@ func serve() error {
 		defer cancel()
 		mgr.StopAll(ctx)
 		gate.Close()
+		httpGate.Close()
 		return nil
 	case err := <-errCh:
 		return err

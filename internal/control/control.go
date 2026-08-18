@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"net"
 	"os"
 	"strings"
 
@@ -54,15 +53,6 @@ func Run(sess Session, deps Deps) int {
 		return 1
 	}
 	return 0
-}
-
-// vmURL is the VM's front-door URL.
-func vmURL(cfg *config.Config, name string) string {
-	_, port, err := net.SplitHostPort(cfg.HTTPAddr)
-	if err != nil || port == "80" {
-		return fmt.Sprintf("http://%s.shed.localhost", name)
-	}
-	return fmt.Sprintf("http://%s.shed.localhost:%s", name, port)
 }
 
 func printJSON(out io.Writer, v any) error {

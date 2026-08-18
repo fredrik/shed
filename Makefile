@@ -4,7 +4,7 @@
 BIN := bin
 AGENT := internal/initramfs/shedguest_linux_arm64
 
-.PHONY: build agent test integration clean
+.PHONY: build agent test clean
 
 build: agent
 	go build -o $(BIN)/shedd ./cmd/shedd
@@ -15,9 +15,6 @@ agent:
 
 test: agent
 	go test ./...
-
-integration: build
-	SHED_VZ_TESTS=1 go test -tags vzintegration -p 1 -exec "go run ./cmd/codesign" ./...
 
 clean:
 	rm -rf $(BIN) $(AGENT)

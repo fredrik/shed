@@ -120,7 +120,7 @@ func (s *Server) handle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	port := targetPort(rec)
+	port := TargetPort(rec)
 	proxy := &httputil.ReverseProxy{
 		Rewrite: func(pr *httputil.ProxyRequest) {
 			pr.Out.URL.Scheme = "http"
@@ -180,9 +180,9 @@ func (s *Server) landing(w http.ResponseWriter, r *http.Request) {
 		"Each vm is reachable at <code>http://&lt;name&gt;."+s.hostWithPort(s.Suffix)+"</code>. List yours: <code>ssh shed ls</code>")
 }
 
-// targetPort picks the forwarded port: share override, else smallest
+// TargetPort picks the forwarded port: share override, else smallest
 // exposed TCP port, else the exe.dev default.
-func targetPort(rec vmspec.VM) int {
+func TargetPort(rec vmspec.VM) int {
 	if rec.Share.Port > 0 {
 		return rec.Share.Port
 	}

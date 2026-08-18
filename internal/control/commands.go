@@ -83,7 +83,7 @@ func cmdNew(deps Deps) *cobra.Command {
 			}
 			fmt.Fprintf(cmd.OutOrStdout(), "vm %s is %s\n", rec.Spec.Name, rec.State)
 			fmt.Fprintf(cmd.OutOrStdout(), "  ssh %s@shed\n", rec.Spec.Name)
-			fmt.Fprintf(cmd.OutOrStdout(), "  %s\n", vmURL(deps.Cfg, rec.Spec.Name))
+			fmt.Fprintf(cmd.OutOrStdout(), "  %s\n", deps.Gate.URL(rec.Spec.Name))
 			return nil
 		},
 	}
@@ -121,7 +121,7 @@ func cmdLs(deps Deps) *cobra.Command {
 			}
 			var rows [][]string
 			for _, rec := range vms {
-				row := []string{rec.Spec.Name, rec.Spec.Image, string(rec.State), vmURL(deps.Cfg, rec.Spec.Name)}
+				row := []string{rec.Spec.Name, rec.Spec.Image, string(rec.State), deps.Gate.URL(rec.Spec.Name)}
 				if long {
 					row = append(row,
 						fmt.Sprint(rec.Spec.CPUs),
@@ -224,7 +224,7 @@ func cmdCp(deps Deps) *cobra.Command {
 			}
 			fmt.Fprintf(cmd.OutOrStdout(), "vm %s is %s (cloned from %s)\n", rec.Spec.Name, rec.State, args[0])
 			fmt.Fprintf(cmd.OutOrStdout(), "  ssh %s@shed\n", rec.Spec.Name)
-			fmt.Fprintf(cmd.OutOrStdout(), "  %s\n", vmURL(deps.Cfg, rec.Spec.Name))
+			fmt.Fprintf(cmd.OutOrStdout(), "  %s\n", deps.Gate.URL(rec.Spec.Name))
 			return nil
 		},
 	}
@@ -304,7 +304,7 @@ func cmdBrowser(deps Deps) *cobra.Command {
 			if _, ok := deps.Mgr.Get(args[0]); !ok {
 				return fmt.Errorf("no such vm %q", args[0])
 			}
-			fmt.Fprintln(cmd.OutOrStdout(), vmURL(deps.Cfg, args[0]))
+			fmt.Fprintln(cmd.OutOrStdout(), deps.Gate.URL(args[0]))
 			return nil
 		},
 	}
