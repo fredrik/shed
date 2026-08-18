@@ -18,6 +18,32 @@ $ ssh box@shed
 dev@box:~$ echo it is a real vm with a real kernel > notes
 ```
 
+## Introduction to shed
+
+shed is the machine shed behind your Mac: a place to keep any number of
+small Linux computers — cheap to make, comfortable to live in for months,
+and nothing to mourn when you throw one away. It takes the exe.dev idea —
+creating a computer should feel like creating a file, not provisioning a
+server — and runs it entirely on your own hardware. No cloud, no account,
+no meter running.
+
+Every box in the shed is a real virtual machine, not a container: its own
+kernel, its own init, its own disk, hardware-isolated by Apple's
+hypervisor. That makes a shed vm the right room for work you don't want
+loose on your Mac — a coding agent with root and free rein, a `curl | sh`
+you'd rather regret elsewhere, a service that wants to own port 80 and
+write everywhere. Inside the vm anything goes; your Mac's disk and
+processes are simply out of reach.
+
+The economics are deliberately boring. Your machine's spare capacity is a
+pool of cpu, memory, and disk; running vms borrow from it and stopped vms
+cost nothing but their disk, so keeping ten half-finished experiments
+around is normal, not hoarding. Everything is addressed by name: `ssh
+box@shed` is a shell (booting the vm first if it's asleep), `ssh shed cp
+box box2` forks the whole machine in a couple of seconds, and
+`http://box.shed.localhost:8080` is whatever box is serving. There is no
+GUI and no YAML — the entire interface is the ssh you already have.
+
 The default image is **exeuntu** (in the spirit of exe.dev's): Ubuntu 24.04
 with git, curl, vim, tmux, htop, ripgrep, jq and friends preinstalled, a
 `dev` login user with passwordless sudo, and a real toolchain: `mise` and
