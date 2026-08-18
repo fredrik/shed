@@ -5,10 +5,8 @@ entirely on your own Mac. Real Linux microVMs booted from OCI images in about
 a second, managed over ssh, with persistent disks and an HTTP front door.
 
 ```
-$ ssh shed new box
-vm box is running
-
 $ ssh box@shed
+shed: creating vm box...
 dev@box:~$
 ```
 
@@ -29,7 +27,8 @@ processes.
 VMs are cheap enough that you don't have to be tidy. A stopped VM costs
 nothing but its disk, and ssh boots it again in about a second, so it's
 fine to have ten half-finished experiments sitting in `ls`. Everything is
-addressed by name: `ssh box@shed` opens a shell, `ssh shed cp box box2`
+addressed by name: `ssh box@shed` opens a shell (creating the VM first if
+it doesn't exist), `ssh shed cp box box2`
 clones the whole machine in a couple of seconds, and
 `http://box.shed.localhost:8080` reaches whatever box is serving. There is
 no GUI and no YAML; the interface is ssh.

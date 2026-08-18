@@ -1,6 +1,7 @@
 package sshgate
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -9,13 +10,29 @@ import (
 
 	gliderssh "github.com/gliderlabs/ssh"
 	gossh "golang.org/x/crypto/ssh"
+
+	"github.com/fredrik/shed/internal/vm"
+	"github.com/fredrik/shed/internal/vm/vmspec"
 )
 
-// connectVM dials the named VM's sshd (starting the VM if needed) and
-// returns an SSH client authenticated as root with the broker key.
-func (s *Server) connectVM(ctx context.Context, vmName string) (*gossh.Client, error) {
+// connectVM dials the named VM's sshd (creating and starting the VM if
+// needed) and returns an SSH client authenticated as root with the broker
+// key. progress receives human-readable notes about slow steps.
+func (s *Server) connectVM(ctx context.Context, vmName string, progress io.Writer) (*gossh.Client, error) {
 	if _, ok := s.Mgr.Get(vmName); !ok {
-		return nil, fmt.Errorf("no such vm %q (create it: ssh shed new %s)", vmName, vmName)
+		if err := vmspec.ValidName(vmName); err != nil {
+			return nil, err
+		}
+		createCtx, cancel := context.WithTimeout(ctx, 10*time.Minute)
+		defer cancel()
+		fmt.Fprintf(progress, "shed: creating vm %s...\n", vmName)
+		if _, err := s.Mgr.Create(createCtx, vm.CreateOpts{Name: vmName, Progress: progress}); err != nil {
+			if _, exists := s.Mgr.Get(vmName); !exists {
+				return nil, err
+			}
+			// Lost a create race with a concurrent session; the VM exists
+			// now, so fall through to EnsureRunning.
+		}
 	}
 	startCtx, cancel := context.WithTimeout(ctx, 90*time.Second)
 	defer cancel()
@@ -45,7 +62,7 @@ func (s *Server) connectVM(ctx context.Context, vmName string) (*gossh.Client, e
 // daemon is the SSH client, authenticating as root with the broker key that
 // every VM trusts.
 func (s *Server) brokerSession(ctx context.Context, sess gliderssh.Session, vmName string) {
-	client, err := s.connectVM(ctx, vmName)
+	client, err := s.connectVM(ctx, vmName, crlfWriter{sess.Stderr()})
 	if err != nil {
 		fmt.Fprintf(sess.Stderr(), "shed: %v\r\n", err)
 		sess.Exit(1)
@@ -116,7 +133,7 @@ func (s *Server) brokerSession(ctx context.Context, sess gliderssh.Session, vmNa
 // brokerSubsystem forwards a subsystem request (sftp — which also carries
 // modern scp) into the VM.
 func (s *Server) brokerSubsystem(ctx context.Context, sess gliderssh.Session, vmName, subsystem string) {
-	client, err := s.connectVM(ctx, vmName)
+	client, err := s.connectVM(ctx, vmName, crlfWriter{sess.Stderr()})
 	if err != nil {
 		log.Printf("sshgate: subsystem %s → %s: connect: %v", subsystem, vmName, err)
 		fmt.Fprintf(sess.Stderr(), "shed: %v\r\n", err)
@@ -208,6 +225,17 @@ func (s *Server) handleDirectTCPIP(srv *gliderssh.Server, conn *gossh.ServerConn
 	io.Copy(guest, ch)
 	ch.Close()
 	guest.Close()
+}
+
+// crlfWriter rewrites \n to \r\n so progress lines render properly on the
+// client's raw tty (matching the \r\n used for error messages here).
+type crlfWriter struct{ w io.Writer }
+
+func (c crlfWriter) Write(p []byte) (int, error) {
+	if _, err := c.w.Write(bytes.ReplaceAll(p, []byte("\n"), []byte("\r\n"))); err != nil {
+		return 0, err
+	}
+	return len(p), nil
 }
 
 func splitEnv(kv string) (string, string, bool) {

@@ -331,8 +331,9 @@ but disk. Your plan is a pool of cpu/memory/disk shared by all vms.
 The default image is exeuntu: Ubuntu 24.04 with common tools preinstalled,
 baked locally on first use (any OCI image works via --image).
 
-  ssh shed new mybox                 create + start (exeuntu)
-  ssh mybox@shed                     shell in as dev (passwordless sudo)
+  ssh mybox@shed                     shell in as dev (passwordless sudo);
+                                     creates the vm first if it doesn't exist
+  ssh shed new mybox                 create + start without a shell (exeuntu)
   ssh shed new web --image nginx     any OCI image works
   ssh shed ls -l                     fleet + pool usage
   ssh shed stop mybox                release cpu/memory
