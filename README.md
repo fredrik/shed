@@ -6,16 +6,10 @@ entirely over ssh, with persistent disks and an HTTP front door.
 
 ```
 $ ssh shed new box
-creating box from exeuntu...
 vm box is running
-  ssh box@shed
-  http://box.shed.localhost:8080
 
 $ ssh box@shed
-
-  exeuntu -- Ubuntu 24.04, shed build
-
-dev@box:~$ echo it is a real vm with a real kernel > notes
+dev@box:~$
 ```
 
 ## Introduction to shed
