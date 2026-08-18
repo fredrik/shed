@@ -51,6 +51,8 @@ One daemon (`shedd`) runs three things:
   user `shed` is the control plane (`ssh shed ls`), any other username
   names a VM and the session is brokered into that VM's sshd (`ssh
   box@shed`). Key-only auth against `~/.local/share/shed/authorized_keys`.
+  The same gateway also listens on a local unix socket with no client
+  auth (the 0600 socket is the auth) — that's what `bin/shed` talks to.
 - **VM manager** over Apple's Virtualization.framework (Code-Hex/vz).
   An OCI image is pulled with go-containerregistry, flattened, and streamed
   through Microsoft's pure-Go `tar2ext4` into a read-only ext4 base disk —
@@ -111,9 +113,16 @@ ssh shed rename <old> <new>
 ssh shed share <vm>              # signed URL for a private vm
 ssh shed share set-public|set-private <vm>
 ssh shed share port <vm> <port>
-ssh shed ssh-key ls|add
+ssh shed ssh-key ls|add          # add - reads the key from stdin
 ssh shed whoami | doc | browser <vm>
 ```
+
+Locally, `bin/shed` runs the same commands without ssh: it talks to the
+daemon over a unix socket (`~/.local/share/shed/control.sock`, 0600 — the
+file mode is the auth), so no keys or agent are involved. `shed ls`,
+`shed new mybox`, `cat key.pub | shed ssh-key add -`. The client sends
+its argv line to the daemon verbatim; the command surface is one cobra
+tree either way. Interactive shells still go over ssh.
 
 `scp`/`sftp` and `ssh -L` work through the gateway:
 

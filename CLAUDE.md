@@ -14,16 +14,21 @@ obvious from the code.
   internal/initramfs embeds it (`go test ./...` alone fails on a clean tree).
 - `bin/shedd serve` — foreground daemon (ssh gateway :2222, http :8080).
 
-## Testing over ssh in sandboxed sessions
+## Testing in sandboxed sessions
 
-- Fredrik's ssh-agent is not reachable from sandboxed shells and his key
-  has a passphrase. Use a dedicated test key: generate one with
-  ssh-keygen, append the pubkey to `~/.local/share/shed/authorized_keys`,
-  then `ssh -o IdentityAgent=none -o IdentitiesOnly=yes -i <key> shed ls`.
+- Control commands need no ssh: `bin/shed ls|new|rm|...` talks to the
+  daemon over `~/.local/share/shed/control.sock` (no keys involved).
+  Note: macOS caps unix socket paths at ~104 bytes, so a deep
+  SHED_STATE_DIR (e.g. the scratchpad) fails to bind — use a short one.
+- ssh is only needed for shells/scp/-L into a VM. Fredrik's ssh-agent is
+  not reachable from sandboxed shells and his key has a passphrase; use a
+  dedicated test key: generate one with ssh-keygen, `bin/shed ssh-key
+  add -` it, then `ssh -o IdentityAgent=none -o IdentitiesOnly=yes -i
+  <key> <vm>@shed`.
 - zsh does not word-split unquoted variables — use `${=VAR}` for option
   variables holding ssh/curl flags.
-- Remove every VM you create once you are done testing (`ssh shed rm
-  <vm>`; verify with `ssh shed ls`). Never remove VMs you didn't create.
+- Remove every VM you create once you are done testing (`bin/shed rm
+  <vm>`; verify with `bin/shed ls`). Never remove VMs you didn't create.
 
 ## Platform facts (verified — do not re-derive)
 
