@@ -42,7 +42,21 @@ func runStage2() error {
 		return fmt.Errorf("sshd: %w", err)
 	}
 	startForwarder()
-	startWorkload(cfg)
+
+	if cfg.BakeScript != "" {
+		// Bake mode: provision, then serve the rootfs tar; ready means
+		// "baked and ready to harvest".
+		if err := runBakeScript(cfg.BakeScript); err != nil {
+			ctl.reportError(err)
+			return err
+		}
+		if err := startBakeServer(); err != nil {
+			ctl.reportError(err)
+			return fmt.Errorf("bake server: %w", err)
+		}
+	} else {
+		startWorkload(cfg)
+	}
 
 	if err := ctl.ready(ip.String(), cfg.Hostname); err != nil {
 		return fmt.Errorf("report ready: %w", err)

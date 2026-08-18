@@ -5,15 +5,25 @@ Mac. Real Linux microVMs booted from OCI images in about a second, managed
 entirely over ssh, with persistent disks and an HTTP front door.
 
 ```
-$ ssh devexe new box --image alpine:latest
-creating box from alpine:latest...
+$ ssh devexe new box
+creating box from exeuntu...
 vm box is running
   ssh box@devexe
   http://box.exe.localhost:8080
 
 $ ssh box@devexe
-box:~# echo it is a real vm with a real kernel > /notes
+
+  exeuntu -- Ubuntu 24.04, devexe build
+
+root@box:~# echo it is a real vm with a real kernel > /notes
 ```
+
+The default image is **exeuntu** (in the spirit of exe.dev's): Ubuntu 24.04
+with git, curl, vim, tmux, htop, ripgrep, jq and friends preinstalled. It is
+baked locally the first time it's used — a throwaway VM boots upstream
+`ubuntu:24.04`, runs the recipe, and streams its rootfs back into a cached
+base image (~20 s). Upstream digest changes or recipe edits rebake on next
+use. Any OCI image still works via `--image`.
 
 ## How it works
 
@@ -43,6 +53,10 @@ are ssh-able), supervises the image's ENTRYPOINT/CMD, and talks to the
 daemon over vsock. When macOS's Local Network privacy blocks TCP to the
 guest, everything transparently falls back to vsock.
 
+Sessions land as a proper login: root's shell from the image's
+`/etc/passwd` run as a login shell, in `$HOME`, with `/etc/motd` shown on
+interactive connects.
+
 VM state machine: `creating → stopped → starting → running → stopping`,
 plus `error`. Stopped VMs keep their disk and release CPU/RAM back to the
 pool (`ls -l` shows usage). ssh to a stopped VM boots it on demand (~1 s).
@@ -67,6 +81,7 @@ bin/exed doctor     # if something is off
 
 ```
 ssh devexe new [name] [--image ref] [--cpu N] [--memory MB] [--disk GB] [--no-start]
+                                   # default image: exeuntu
 ssh devexe ls [-l] [--json]
 ssh devexe start|stop|restart <vm>...
 ssh devexe rm <vm>...

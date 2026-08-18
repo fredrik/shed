@@ -6,6 +6,7 @@ package vm
 import (
 	"context"
 	"fmt"
+	"io"
 	"log"
 	"path/filepath"
 	"sort"
@@ -144,6 +145,9 @@ type CreateOpts struct {
 	DiskGB    int
 	Autostart bool
 	NoStart   bool
+	// Progress, when set, receives human-readable notes about slow steps
+	// (image pulls, the one-time exeuntu bake).
+	Progress io.Writer
 }
 
 // Create makes a new VM: resolves the image, builds disks, persists the
@@ -201,7 +205,11 @@ func (m *Manager) Create(ctx context.Context, opts CreateOpts) (vmspec.VM, error
 		return vmspec.VM{}, err
 	}
 
-	info, _, err := m.prep.EnsureImage(ctx, spec.Image)
+	progress := opts.Progress
+	if progress == nil {
+		progress = io.Discard
+	}
+	info, _, err := m.ensureImage(ctx, spec.Image, progress)
 	if err != nil {
 		return fail(fmt.Errorf("image %s: %w", spec.Image, err))
 	}
@@ -266,8 +274,8 @@ func (m *Manager) Start(ctx context.Context, name string) error {
 	m.mu.Unlock()
 
 	// Rebuild the base disk path from the image digest (cache may have
-	// been pruned; EnsureImage is a fast no-op on cache hit).
-	_, baseDisk, err := m.prep.EnsureImage(ctx, rec.Spec.Image)
+	// been pruned; ensureImage is a fast no-op on cache hit).
+	_, baseDisk, err := m.ensureImage(ctx, rec.Spec.Image, io.Discard)
 	if err != nil {
 		m.startFailed(e, fmt.Errorf("image: %w", err))
 		return fmt.Errorf("image %s: %w", rec.Spec.Image, err)

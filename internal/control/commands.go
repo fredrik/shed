@@ -73,6 +73,7 @@ func cmdNew(deps Deps) *cobra.Command {
 				Name: name, Image: imageRef,
 				CPUs: cpus, MemoryMB: memoryMB, DiskGB: diskGB,
 				Autostart: autostart, NoStart: noStart,
+				Progress: cmd.OutOrStdout(),
 			})
 			if err != nil {
 				return err
@@ -327,13 +328,19 @@ Every vm is a real Linux microVM (Virtualization.framework) booted from an
 OCI image in about a second. The disk persists; stopped vms cost nothing
 but disk. Your plan is a pool of cpu/memory/disk shared by all vms.
 
-  ssh exe@devexe new mybox --image ubuntu:24.04   create + start
-  ssh mybox@devexe                                shell into it
-  ssh exe@devexe ls -l                            fleet + pool usage
-  ssh exe@devexe stop mybox                       release cpu/memory
-  ssh exe@devexe rm mybox                         delete, including disk
+The default image is exeuntu: Ubuntu 24.04 with common tools preinstalled,
+baked locally on first use (any OCI image works via --image).
 
-HTTP: each vm will be reachable at http://<name>.exe.localhost:8080 (M4).
+  ssh devexe new mybox                 create + start (exeuntu)
+  ssh mybox@devexe                     shell into it, as root, in /root
+  ssh devexe new web --image nginx     any OCI image works
+  ssh devexe ls -l                     fleet + pool usage
+  ssh devexe stop mybox                release cpu/memory
+  ssh devexe cp mybox mybox2           instant copy-on-write clone
+  ssh devexe rm mybox                  delete, including disk
+
+HTTP: each vm is reachable at http://<name>.exe.localhost:8080 — private
+by default; ssh devexe share <name> prints an access link.
 `
 
 func stub(name, msg string) *cobra.Command {

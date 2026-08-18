@@ -50,7 +50,17 @@ type Config struct {
 	Cmd            []string `json:"cmd,omitempty"`
 	Env            []string `json:"env,omitempty"`
 	WorkingDir     string   `json:"working_dir,omitempty"`
+
+	// BakeScript turns the boot into an image bake: the agent runs the
+	// script before reporting ready, then serves a tar of the merged
+	// rootfs on guest loopback BakeTarPort for the host to turn into a
+	// new base image.
+	BakeScript string `json:"bake_script,omitempty"`
 }
+
+// BakeTarPort is the guest-loopback TCP port where a baking VM serves its
+// rootfs tar (reached via the normal DialGuest transports).
+const BakeTarPort = 1025
 
 // ForwardHeader is the first JSON line on a ForwardPort connection.
 type ForwardHeader struct {

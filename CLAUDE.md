@@ -29,4 +29,8 @@ zsh does not word-split unquoted variables — use `${=VAR}` for option vars.
   environment ("no route to host"); the vsock fallback in
   vzbackend.DialGuest handles it — do not debug it as a network failure.
 - guest→host vsock control is on port 2048; guest port-forward listener on
-  vsock 1024 (see internal/vsockproto).
+  vsock 1024; a baking VM serves its rootfs tar on guest loopback 1025
+  (see internal/vsockproto).
+- The default image "exeuntu" is baked locally on first use by
+  internal/vm/exeuntu.go (recipe + cache-key logic there); cached under
+  ~/Library/Caches/devexe/base/exeuntu-<hash>.img with a .json sidecar.
