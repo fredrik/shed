@@ -29,7 +29,6 @@ func install(out interface{ Write([]byte) (int, error) }) error {
 	if err != nil {
 		return err
 	}
-	migrateFromDevexe(cfg, out)
 	if err := os.MkdirAll(filepath.Join(cfg.StateDir, "keys"), 0o700); err != nil {
 		return err
 	}
@@ -90,45 +89,4 @@ Host shed
 
 	fmt.Fprintf(out, "\nnext:\n  make build && bin/shedd serve   # run the daemon\n  ssh shed new mybox            # create a vm\n  ssh mybox@shed                # shell in\n")
 	return nil
-}
-
-// migrateFromDevexe adopts state from the project's pre-rename life as
-// devexe: the state and cache directories move wholesale (keys, disks,
-// kernel, baked images stay valid), and the stale ssh include is dropped.
-func migrateFromDevexe(cfg *config.Config, out interface{ Write([]byte) (int, error) }) {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return
-	}
-	moves := [][2]string{
-		{filepath.Join(home, ".local", "share", "devexe"), cfg.StateDir},
-		{filepath.Join(home, "Library", "Caches", "devexe"), cfg.CacheDir},
-	}
-	for _, m := range moves {
-		if _, err := os.Stat(m[0]); err != nil {
-			continue
-		}
-		if _, err := os.Stat(m[1]); err == nil {
-			continue // new dir already exists; leave both alone
-		}
-		os.Remove(filepath.Join(m[0], "exed.lock"))
-		if err := os.Rename(m[0], m[1]); err == nil {
-			fmt.Fprintf(out, "migrated %s -> %s\n", m[0], m[1])
-		}
-	}
-
-	sshDir := filepath.Join(home, ".ssh")
-	oldConfig := filepath.Join(sshDir, "devexe_config")
-	if _, err := os.Stat(oldConfig); err == nil {
-		os.Remove(oldConfig)
-		fmt.Fprintf(out, "removed stale %s\n", oldConfig)
-	}
-	mainConfig := filepath.Join(sshDir, "config")
-	if data, err := os.ReadFile(mainConfig); err == nil {
-		cleaned := strings.ReplaceAll(string(data), "Include devexe_config\n", "")
-		if cleaned != string(data) {
-			os.WriteFile(mainConfig, []byte(cleaned), 0o600)
-			fmt.Fprintf(out, "removed devexe include from %s\n", mainConfig)
-		}
-	}
 }
