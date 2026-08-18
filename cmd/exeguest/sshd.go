@@ -8,7 +8,10 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"os"
 	"os/exec"
+	"path/filepath"
+	"strings"
 
 	"github.com/creack/pty"
 	gliderssh "github.com/gliderlabs/ssh"
@@ -89,20 +92,60 @@ func startSSHD(authorizedKeys []string) error {
 
 const sshVsockPort = 22
 
+// loginShell returns root's shell and home from /etc/passwd, with
+// fallbacks that hold for any image.
+func loginShell() (shell, home string) {
+	shell, home = "/bin/sh", "/root"
+	data, err := os.ReadFile("/etc/passwd")
+	if err != nil {
+		return
+	}
+	for _, line := range strings.Split(string(data), "\n") {
+		fields := strings.Split(line, ":")
+		if len(fields) >= 7 && fields[0] == "root" {
+			if fields[5] != "" {
+				home = fields[5]
+			}
+			if fields[6] != "" {
+				if _, err := os.Stat(fields[6]); err == nil {
+					shell = fields[6]
+				}
+			}
+			return
+		}
+	}
+	return
+}
+
 func handleSession(s gliderssh.Session) {
+	shell, home := loginShell()
+	os.MkdirAll(home, 0o700)
+
 	var cmd *exec.Cmd
 	if len(s.Command()) > 0 {
-		cmd = exec.Command("/bin/sh", "-c", s.RawCommand())
+		cmd = exec.Command(shell, "-c", s.RawCommand())
 	} else {
-		cmd = exec.Command("/bin/sh")
+		// Interactive: run the user's shell as a login shell (argv[0]
+		// starts with "-") so profiles load.
+		cmd = exec.Command(shell)
+		cmd.Args = []string{"-" + filepath.Base(shell)}
 	}
+	cmd.Dir = home
 	cmd.Env = append(cmd.Env,
 		"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
-		"HOME=/root",
+		"HOME="+home,
 		"USER=root",
+		"LOGNAME=root",
+		"SHELL="+shell,
+		"LANG=C.UTF-8",
 	)
 
 	ptyReq, winCh, isPty := s.Pty()
+	if isPty && len(s.Command()) == 0 {
+		if motd, err := os.ReadFile("/etc/motd"); err == nil {
+			s.Write(motd)
+		}
+	}
 	if isPty {
 		cmd.Env = append(cmd.Env, "TERM="+ptyReq.Term)
 		f, err := pty.Start(cmd)
