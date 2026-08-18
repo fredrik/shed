@@ -296,6 +296,7 @@ func (m *Manager) Start(ctx context.Context, name string) error {
 			Cmd:            rec.Image.Cmd,
 			Env:            rec.Image.Env,
 			WorkingDir:     rec.Image.WorkingDir,
+			User:           m.cfg.DefaultUser,
 		},
 	})
 	if err != nil {

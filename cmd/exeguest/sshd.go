@@ -11,7 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
+	"syscall"
 
 	"github.com/creack/pty"
 	gliderssh "github.com/gliderlabs/ssh"
@@ -21,8 +21,10 @@ import (
 
 // startSSHD serves ssh on :22 with an in-process Go server, so any image —
 // alpine, distroless — is ssh-able without shipping an sshd. Auth checks
-// the authorized keys the host delivered over vsock.
-func startSSHD(authorizedKeys []string) error {
+// the authorized keys the host delivered over vsock; sessions run as the
+// host-requested login user when the image has it.
+func startSSHD(authorizedKeys []string, preferredUser string) error {
+	resolveSessionTarget(preferredUser)
 	var allowed []gliderssh.PublicKey
 	for _, line := range authorizedKeys {
 		key, _, _, _, err := gossh.ParseAuthorizedKey([]byte(line))
@@ -92,53 +94,44 @@ func startSSHD(authorizedKeys []string) error {
 
 const sshVsockPort = 22
 
-// loginShell returns root's shell and home from /etc/passwd, with
-// fallbacks that hold for any image.
-func loginShell() (shell, home string) {
-	shell, home = "/bin/sh", "/root"
-	data, err := os.ReadFile("/etc/passwd")
-	if err != nil {
+// applyCredential makes cmd run as u when u isn't root. The agent stays
+// root; only session children drop privileges.
+func applyCredential(cmd *exec.Cmd, u *guestUser) {
+	if u.UID == 0 {
 		return
 	}
-	for _, line := range strings.Split(string(data), "\n") {
-		fields := strings.Split(line, ":")
-		if len(fields) >= 7 && fields[0] == "root" {
-			if fields[5] != "" {
-				home = fields[5]
-			}
-			if fields[6] != "" {
-				if _, err := os.Stat(fields[6]); err == nil {
-					shell = fields[6]
-				}
-			}
-			return
-		}
+	if cmd.SysProcAttr == nil {
+		cmd.SysProcAttr = &syscall.SysProcAttr{}
 	}
-	return
+	cmd.SysProcAttr.Credential = &syscall.Credential{
+		Uid:    u.UID,
+		Gid:    u.GID,
+		Groups: u.Groups,
+	}
 }
 
 func handleSession(s gliderssh.Session) {
-	shell, home := loginShell()
-	os.MkdirAll(home, 0o700)
+	u := sessionTarget
 
 	var cmd *exec.Cmd
 	if len(s.Command()) > 0 {
-		cmd = exec.Command(shell, "-c", s.RawCommand())
+		cmd = exec.Command(u.Shell, "-c", s.RawCommand())
 	} else {
 		// Interactive: run the user's shell as a login shell (argv[0]
 		// starts with "-") so profiles load.
-		cmd = exec.Command(shell)
-		cmd.Args = []string{"-" + filepath.Base(shell)}
+		cmd = exec.Command(u.Shell)
+		cmd.Args = []string{"-" + filepath.Base(u.Shell)}
 	}
-	cmd.Dir = home
+	cmd.Dir = u.Home
 	cmd.Env = append(cmd.Env,
 		"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
-		"HOME="+home,
-		"USER=root",
-		"LOGNAME=root",
-		"SHELL="+shell,
+		"HOME="+u.Home,
+		"USER="+u.Name,
+		"LOGNAME="+u.Name,
+		"SHELL="+u.Shell,
 		"LANG=C.UTF-8",
 	)
+	applyCredential(cmd, u)
 
 	ptyReq, winCh, isPty := s.Pty()
 	if isPty && len(s.Command()) == 0 {

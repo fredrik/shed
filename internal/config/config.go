@@ -22,6 +22,7 @@ type Config struct {
 	HTTPAddr string `toml:"http_addr"`
 
 	DefaultImage    string `toml:"default_image"`
+	DefaultUser     string `toml:"default_user"` // login user when the image has it
 	DefaultCPUs     int    `toml:"default_cpus"`
 	DefaultMemoryMB int    `toml:"default_memory_mb"`
 	DefaultDiskGB   int    `toml:"default_disk_gb"`
@@ -49,6 +50,7 @@ func Load() (*Config, error) {
 		SSHAddr:         "127.0.0.1:2222",
 		HTTPAddr:        "127.0.0.1:8080",
 		DefaultImage:    "exeuntu",
+		DefaultUser:     "dev",
 		DefaultCPUs:     2,
 		DefaultMemoryMB: 1024,
 		DefaultDiskGB:   10,

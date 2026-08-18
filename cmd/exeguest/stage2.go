@@ -29,6 +29,9 @@ func runStage2() error {
 	if cfg.Hostname != "" {
 		unix.Sethostname([]byte(cfg.Hostname))
 		os.WriteFile("/etc/hostname", []byte(cfg.Hostname+"\n"), 0o644)
+		// sudo and friends resolve the hostname; make sure it resolves.
+		os.WriteFile("/etc/hosts", []byte(
+			"127.0.0.1\tlocalhost\n127.0.1.1\t"+cfg.Hostname+"\n::1\tlocalhost\n"), 0o644)
 	}
 
 	ip, err := networkUp(context.Background())
@@ -37,7 +40,7 @@ func runStage2() error {
 		return fmt.Errorf("network: %w", err)
 	}
 
-	if err := startSSHD(cfg.AuthorizedKeys); err != nil {
+	if err := startSSHD(cfg.AuthorizedKeys, cfg.User); err != nil {
 		ctl.reportError(err)
 		return fmt.Errorf("sshd: %w", err)
 	}

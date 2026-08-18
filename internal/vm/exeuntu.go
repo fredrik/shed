@@ -36,11 +36,20 @@ apt-get install -y --no-install-recommends \
   ripgrep jq unzip zip file rsync openssh-client sudo \
   iproute2 iputils-ping dnsutils netcat-openbsd
 apt-get clean
+
+# The default login user: uid 1000, bash, passwordless sudo. The stock
+# ubuntu user makes way so uid 1000 stays conventional.
+userdel -r ubuntu 2>/dev/null || true
+useradd -m -u 1000 -s /bin/bash dev
+usermod -aG sudo dev
+echo 'dev ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/dev
+chmod 440 /etc/sudoers.d/dev
+
 cat > /etc/motd <<'MOTD'
 
   exeuntu -- Ubuntu 24.04, devexe build
 
-  This microVM is yours: root shell, persistent disk, apt works.
+  This microVM is yours: persistent disk, apt works, sudo is free.
   Its web port is proxied at http://<vmname>.exe.localhost:8080
   Manage the fleet: ssh devexe help
 

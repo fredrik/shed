@@ -15,7 +15,7 @@ $ ssh box@devexe
 
   exeuntu -- Ubuntu 24.04, devexe build
 
-root@box:~# echo it is a real vm with a real kernel > /notes
+dev@box:~$ echo it is a real vm with a real kernel > notes
 ```
 
 The default image is **exeuntu** (in the spirit of exe.dev's): Ubuntu 24.04
@@ -53,9 +53,12 @@ are ssh-able), supervises the image's ENTRYPOINT/CMD, and talks to the
 daemon over vsock. When macOS's Local Network privacy blocks TCP to the
 guest, everything transparently falls back to vsock.
 
-Sessions land as a proper login: root's shell from the image's
-`/etc/passwd` run as a login shell, in `$HOME`, with `/etc/motd` shown on
-interactive connects.
+Sessions land as a proper login: the default user `dev` (uid 1000,
+passwordless sudo — baked into exeuntu) when the image has it, root
+otherwise, running the user's shell from `/etc/passwd` as a login shell in
+`$HOME`, with `/etc/motd` shown on interactive connects. scp/sftp run as
+the same user, so ownership comes out right. `default_user` in config.toml
+changes the preference; `sudo -i` is always one step from root.
 
 VM state machine: `creating → stopped → starting → running → stopping`,
 plus `error`. Stopped VMs keep their disk and release CPU/RAM back to the

@@ -51,6 +51,11 @@ type Config struct {
 	Env            []string `json:"env,omitempty"`
 	WorkingDir     string   `json:"working_dir,omitempty"`
 
+	// User is the preferred login user for ssh sessions. The agent uses
+	// it when the image's /etc/passwd has it and falls back to root
+	// otherwise, so plain OCI images keep working.
+	User string `json:"user,omitempty"`
+
 	// BakeScript turns the boot into an image bake: the agent runs the
 	// script before reporting ready, then serves a tar of the merged
 	// rootfs on guest loopback BakeTarPort for the host to turn into a

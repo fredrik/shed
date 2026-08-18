@@ -332,7 +332,7 @@ The default image is exeuntu: Ubuntu 24.04 with common tools preinstalled,
 baked locally on first use (any OCI image works via --image).
 
   ssh devexe new mybox                 create + start (exeuntu)
-  ssh mybox@devexe                     shell into it, as root, in /root
+  ssh mybox@devexe                     shell in as dev (passwordless sudo)
   ssh devexe new web --image nginx     any OCI image works
   ssh devexe ls -l                     fleet + pool usage
   ssh devexe stop mybox                release cpu/memory

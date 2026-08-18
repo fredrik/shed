@@ -16,6 +16,10 @@ import (
 )
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "sftp-server" {
+		runSFTPServer()
+		return
+	}
 	if os.Getpid() != 1 {
 		fmt.Fprintln(os.Stderr, "exeguest: must run as pid 1 inside a VM")
 		os.Exit(1)
