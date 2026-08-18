@@ -1,8 +1,8 @@
 # shed
 
-A local clone of [exe.dev](https://exe.dev) — the ssh-based microVM service — for one
-Mac. Real Linux microVMs booted from OCI images in about a second, managed
-entirely over ssh, with persistent disks and an HTTP front door.
+A clone of [exe.dev](https://exe.dev), the ssh-based microVM service, that runs
+entirely on your own Mac. Real Linux microVMs booted from OCI images in about
+a second, managed over ssh, with persistent disks and an HTTP front door.
 
 ```
 $ ssh shed new box
