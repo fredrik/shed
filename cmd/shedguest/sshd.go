@@ -3,6 +3,7 @@
 package main
 
 import (
+	"bytes"
 	"crypto/ed25519"
 	"crypto/rand"
 	"fmt"
@@ -140,6 +141,11 @@ func handleSession(s gliderssh.Session) {
 	ptyReq, winCh, isPty := s.Pty()
 	if isPty && len(s.Command()) == 0 {
 		if motd, err := os.ReadFile("/etc/motd"); err == nil {
+			// The motd is baked into the image, so it carries a <vmname>
+			// placeholder; the hostname is this VM's name.
+			if host, err := os.Hostname(); err == nil {
+				motd = bytes.ReplaceAll(motd, []byte("<vmname>"), []byte(host))
+			}
 			s.Write(motd)
 		}
 	}

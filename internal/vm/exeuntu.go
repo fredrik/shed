@@ -47,6 +47,9 @@ curl -LsSf https://astral.sh/uv/install.sh | \
 # mise activation for interactive shells, project configs under $HOME
 # trusted, node 24 as the global tool, uv tuned for ext4.
 mkdir -p /etc/skel/.config/mise /etc/skel/.config/uv
+# Pre-seed the "sudo lecture done" marker so Ubuntu's bash.bashrc does not
+# append its "man sudo_root" hint after our motd on every login.
+touch /etc/skel/.sudo_as_admin_successful
 cat >> /etc/skel/.bashrc <<'RC'
 
 # shed: mise manages per-project tools
@@ -88,7 +91,7 @@ cat > /etc/motd <<'MOTD'
 
   This microVM is yours: persistent disk, apt works, sudo is free.
   Its web port is proxied at http://<vmname>.shed.localhost:8080
-  Manage the fleet: ssh shed help
+  Manage the fleet from the host: ssh shed help
 
 MOTD
 `
