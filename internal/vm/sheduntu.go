@@ -229,18 +229,8 @@ printf '%b' '
 `
 )
 
-// sheduntuNames includes the image's former name: VM records written
-// before the rename still carry it, and they must keep resolving instead
-// of being sent to a registry that has never heard of them.
-var sheduntuNames = []string{sheduntuName, "exeuntu"}
-
 func isSheduntu(ref string) bool {
-	for _, name := range sheduntuNames {
-		if ref == name || ref == name+":latest" {
-			return true
-		}
-	}
-	return false
+	return ref == sheduntuName || ref == sheduntuName+":latest"
 }
 
 // ensureImage resolves any image reference, treating sheduntu specially.
@@ -333,21 +323,17 @@ func (m *Manager) ensureSheduntu(ctx context.Context, progress io.Writer) (vmspe
 	return info, imgPath, nil
 }
 
-// pruneOldSheduntu removes superseded base images. Safe: VMs always
-// resolve the image to the current bake on start, so older ones are
-// orphaned the moment a new bake lands. Both names are swept, or the
-// last exeuntu-*.img would sit in the cache forever.
+// pruneOldSheduntu removes superseded sheduntu base images. Safe: VMs
+// always resolve the image to the current bake on start, so older ones
+// are orphaned the moment a new bake lands.
 func pruneOldSheduntu(dir, keepTag string) {
-	keep := filepath.Join(dir, sheduntuName+"-"+keepTag+".img")
-	for _, name := range sheduntuNames {
-		matches, _ := filepath.Glob(filepath.Join(dir, name+"-*.img"))
-		for _, m := range matches {
-			if m == keep {
-				continue
-			}
-			os.Remove(m)
-			os.Remove(m + ".json")
+	matches, _ := filepath.Glob(filepath.Join(dir, sheduntuName+"-*.img"))
+	for _, m := range matches {
+		if m == filepath.Join(dir, sheduntuName+"-"+keepTag+".img") {
+			continue
 		}
+		os.Remove(m)
+		os.Remove(m + ".json")
 	}
 }
 
