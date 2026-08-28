@@ -37,11 +37,26 @@ The default image is exeuntu (after exe.dev's own): Ubuntu 24.04 with the
 usual tools installed (git, curl, vim, tmux, htop, ripgrep, jq), a `dev`
 user with passwordless sudo, plus mise and uv in /usr/local/bin, node 24
 via mise, and python 3.14 (uv-managed) as dev's default next to the apt
-`python3`. It's baked locally the first time you use it: a throwaway VM
-boots upstream `ubuntu:24.04`, runs the recipe, and its rootfs becomes the
-cached base image. Takes about a minute, rebakes when the upstream digest
-or the recipe changes, and old bakes are pruned. Any other OCI image works
-via `--image`.
+`python3`.
+
+You land in zsh with a [starship](https://starship.rs) prompt, history
+suggestions and syntax highlighting as you type, ctrl-r/ctrl-t fuzzy
+search through history and files, and the small tools everyone installs
+anyway: `fzf`, `bat`, `fd`, `zoxide` (`z <dir>` jumps to where you
+usually work), `tree`. There is no framework behind it — `cat ~/.zshrc`
+is about forty lines and explains itself, and deleting it is a supported
+opinion. The prompt sticks to plain unicode so it renders in any
+terminal; if yours has a Nerd Font, one command upgrades it:
+
+```sh
+starship preset nerd-font-symbols -o ~/.config/starship.toml
+```
+
+The image is baked locally the first time you use it: a throwaway VM
+boots upstream `ubuntu:24.04`, runs the recipe, and its rootfs becomes
+the cached base image. Takes about a minute, rebakes whenever the recipe
+changes (bump `exeuntuVersion` to pick up upstream Ubuntu updates), and
+old bakes are pruned. Any other OCI image works via `--image`.
 
 ## How it works
 
