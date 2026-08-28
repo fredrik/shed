@@ -28,7 +28,11 @@ func networkUp(ctx context.Context) (net.IP, error) {
 		return nil, fmt.Errorf("eth0 up: %w", err)
 	}
 
-	client, err := nclient4.New("eth0")
+	// macOS bootpd occasionally drops a DISCOVER/OFFER; on this sub-ms
+	// bridge the default 5s retransmit turns one lost packet into a 5s
+	// boot stall. Retransmit fast instead, within the same overall budget.
+	client, err := nclient4.New("eth0",
+		nclient4.WithTimeout(100*time.Millisecond), nclient4.WithRetry(90))
 	if err != nil {
 		return nil, fmt.Errorf("dhcp client: %w", err)
 	}

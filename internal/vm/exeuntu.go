@@ -21,13 +21,14 @@ import (
 // with the tools you expect already installed. It is baked locally, once:
 // a throwaway VM boots the upstream Ubuntu image, runs the recipe below,
 // and streams its merged rootfs back to become a cached base image.
-// Upstream digest changes (Ubuntu security updates) or recipe edits change
-// the cache key, so the image tracks upstream on next use.
+// The cache key covers only the version and the recipe, so a baked image
+// resolves offline — no registry round trip on the create path. Upstream
+// Ubuntu updates are picked up by bumping exeuntuVersion.
 
 const (
 	exeuntuName    = "exeuntu"
 	exeuntuBase    = "ubuntu:24.04"
-	exeuntuVersion = "v1" // bump to force a rebake without editing the recipe
+	exeuntuVersion = "v1" // bump to force a rebake (e.g. for upstream Ubuntu updates)
 
 	exeuntuScript = `set -eux
 apt-get update
@@ -110,12 +111,7 @@ func (m *Manager) ensureImage(ctx context.Context, ref string, progress io.Write
 }
 
 func (m *Manager) ensureExeuntu(ctx context.Context, progress io.Writer) (vmspec.ImageInfo, string, error) {
-	baseInfo, basePath, err := m.prep.EnsureImage(ctx, exeuntuBase)
-	if err != nil {
-		return vmspec.ImageInfo{}, "", fmt.Errorf("exeuntu base %s: %w", exeuntuBase, err)
-	}
-
-	sum := sha256.Sum256([]byte(exeuntuVersion + "\x00" + baseInfo.Digest + "\x00" + exeuntuScript))
+	sum := sha256.Sum256([]byte(exeuntuVersion + "\x00" + exeuntuScript))
 	tag := hex.EncodeToString(sum[:])[:12]
 	imgPath := filepath.Join(m.cfg.CacheDir, "base", "exeuntu-"+tag+".img")
 	infoPath := imgPath + ".json"
@@ -124,6 +120,11 @@ func (m *Manager) ensureExeuntu(ctx context.Context, progress io.Writer) (vmspec
 		if _, err := os.Stat(imgPath); err == nil {
 			return info, imgPath, nil
 		}
+	}
+
+	_, basePath, err := m.prep.EnsureImage(ctx, exeuntuBase)
+	if err != nil {
+		return vmspec.ImageInfo{}, "", fmt.Errorf("exeuntu base %s: %w", exeuntuBase, err)
 	}
 
 	fmt.Fprintf(progress, "baking the exeuntu image (first time only, a few minutes)...\n")
