@@ -146,7 +146,7 @@ type CreateOpts struct {
 	Autostart bool
 	NoStart   bool
 	// Progress, when set, receives human-readable notes about slow steps
-	// (image pulls, the one-time exeuntu bake).
+	// (image pulls, the one-time sheduntu bake).
 	Progress io.Writer
 }
 
