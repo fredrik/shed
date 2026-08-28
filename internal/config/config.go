@@ -55,7 +55,7 @@ func Load() (*Config, error) {
 	cfg := &Config{
 		SSHAddr:         "127.0.0.1:2222",
 		HTTPAddr:        "127.0.0.1:8080",
-		DefaultImage:    "exeuntu",
+		DefaultImage:    "sheduntu",
 		DefaultUser:     "dev",
 		DefaultCPUs:     2,
 		DefaultMemoryMB: 1024,

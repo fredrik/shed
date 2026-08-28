@@ -33,7 +33,7 @@ clones the whole machine in a couple of seconds, and
 `http://box.shed.localhost:8080` reaches whatever box is serving. There is
 no GUI and no YAML; the interface is ssh.
 
-The default image is exeuntu (after exe.dev's own): Ubuntu 24.04 with the
+The default image is sheduntu: Ubuntu 24.04 with the
 usual tools installed (git, curl, vim, tmux, htop, ripgrep, jq), a `dev`
 user with passwordless sudo, plus mise and uv in /usr/local/bin, node 24
 via mise, and python 3.14 (uv-managed) as dev's default next to the apt
@@ -55,7 +55,7 @@ starship preset nerd-font-symbols -o ~/.config/starship.toml
 The image is baked locally the first time you use it: a throwaway VM
 boots upstream `ubuntu:24.04`, runs the recipe, and its rootfs becomes
 the cached base image. Takes about a minute, rebakes whenever the recipe
-changes (bump `exeuntuVersion` to pick up upstream Ubuntu updates), and
+changes (bump `sheduntuVersion` to pick up upstream Ubuntu updates), and
 old bakes are pruned. Any other OCI image works via `--image`.
 
 ## How it works
@@ -89,7 +89,7 @@ daemon over vsock. When macOS's Local Network privacy blocks TCP to the
 guest, everything transparently falls back to vsock.
 
 Sessions land as a proper login: the default user `dev` (uid 1000,
-passwordless sudo — baked into exeuntu) when the image has it, root
+passwordless sudo — baked into sheduntu) when the image has it, root
 otherwise, running the user's shell from `/etc/passwd` as a login shell in
 `$HOME`, with `/etc/motd` shown on interactive connects. scp/sftp run as
 the same user, so ownership comes out right. `default_user` in config.toml
@@ -119,7 +119,7 @@ bin/shedd doctor     # if something is off
 
 ```
 ssh shed new [name] [--image ref] [--cpu N] [--memory MB] [--disk GB] [--no-start]
-                                   # default image: exeuntu
+                                   # default image: sheduntu
 ssh shed ls [-l] [--json]
 ssh shed start|stop|restart <vm>...
 ssh shed rm <vm>...

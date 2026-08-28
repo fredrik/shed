@@ -42,7 +42,7 @@ obvious from the code.
 - vsock ports: guest→host control on 2048; guest port-forward listener on
   1024; a baking VM serves its rootfs tar on guest loopback 1025 (see
   internal/vsockproto).
-- The default image "exeuntu" is baked locally on first use by
-  internal/vm/exeuntu.go (recipe and cache-key logic live there); cached
-  as `~/Library/Caches/shed/base/exeuntu-<hash>.img` with a .json sidecar.
+- The default image "sheduntu" is baked locally on first use by
+  internal/vm/sheduntu.go (recipe and cache-key logic live there); cached
+  as `~/Library/Caches/shed/base/sheduntu-<hash>.img` with a .json sidecar.
   Recipe or upstream-digest changes rebake on next use (about a minute).

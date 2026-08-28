@@ -17,20 +17,24 @@ import (
 	"github.com/fredrik/shed/internal/vsockproto"
 )
 
-// exeuntu is shed's default image, in the spirit of exe.dev's: Ubuntu
-// with the tools you expect already installed. It is baked locally, once:
+// sheduntu is shed's default image: Ubuntu with the tools you expect
+// already installed, and a shell someone actually chose. It started as a
+// copy of exe.dev's exeuntu and was called that; the taste in here is now
+// shed's own, so the name is too.
+//
+// It is baked locally, once:
 // a throwaway VM boots the upstream Ubuntu image, runs the recipe below,
 // and streams its merged rootfs back to become a cached base image.
 // The cache key covers only the version and the recipe, so a baked image
 // resolves offline — no registry round trip on the create path. Upstream
-// Ubuntu updates are picked up by bumping exeuntuVersion.
+// Ubuntu updates are picked up by bumping sheduntuVersion.
 
 const (
-	exeuntuName    = "exeuntu"
-	exeuntuBase    = "ubuntu:24.04"
-	exeuntuVersion = "v1" // bump to force a rebake (e.g. for upstream Ubuntu updates)
+	sheduntuName    = "sheduntu"
+	sheduntuBase    = "ubuntu:24.04"
+	sheduntuVersion = "v1" // bump to force a rebake (e.g. for upstream Ubuntu updates)
 
-	exeuntuScript = `set -eux
+	sheduntuScript = `set -eux
 # The Ubuntu OCI image drops /usr/share/doc/*, and that is where Debian
 # ships fzf's shell integration. Keep fzf's examples, nothing else. (Read
 # after the image's own "excludes" file, which is why the zz- name.)
@@ -96,7 +100,7 @@ TOML
 # Distro-provided files are sourced defensively -- packaging moves them
 # between releases, and a missing one must not break the shell.
 cat > /etc/skel/.zshrc <<'RC'
-# exeuntu defaults -- yours to edit or delete.
+# sheduntu defaults -- yours to edit or delete.
 
 # History: big, shared between sessions, deduped.
 HISTFILE=~/.zsh_history
@@ -143,7 +147,7 @@ RC
 # Plain unicode only: these glyphs render in the host's terminal, which we
 # do not control, so the default has to look right everywhere.
 cat > /etc/skel/.config/starship.toml <<'TOML'
-# exeuntu prompt. Nerd Font in your terminal? One command upgrades it:
+# sheduntu prompt. Nerd Font in your terminal? One command upgrades it:
 #   starship preset nerd-font-symbols -o ~/.config/starship.toml
 format = """
 $directory$git_branch$git_status$nodejs$python$golang$rust$cmd_duration
@@ -180,7 +184,7 @@ symbol = "rs "
 TOML
 
 cat > /etc/skel/.config/tmux/tmux.conf <<'CONF'
-# exeuntu defaults -- yours to edit or delete.
+# sheduntu defaults -- yours to edit or delete.
 set -g default-terminal "tmux-256color"
 set -ga terminal-overrides ",*256col*:Tc,xterm*:Tc"
 set -g mouse on
@@ -215,7 +219,7 @@ su - dev -s /bin/bash -c 'zsh -ic exit' || true
 # printf %b for the escapes: the agent writes this file verbatim, and only
 # to pty sessions, so the colour is safe.
 printf '%b' '
-  \033[1;36mexeuntu\033[0m \033[2m-- Ubuntu 24.04, shed build\033[0m
+  \033[1;36msheduntu\033[0m \033[2m-- Ubuntu 24.04, shed build\033[0m
 
   This microVM is yours: persistent disk, apt works, sudo is free.
   Web port proxied at  \033[4;34mhttp://<vmname>.shed.localhost:8080\033[0m
@@ -225,22 +229,32 @@ printf '%b' '
 `
 )
 
-func isExeuntu(ref string) bool {
-	return ref == exeuntuName || ref == exeuntuName+":latest"
+// sheduntuNames includes the image's former name: VM records written
+// before the rename still carry it, and they must keep resolving instead
+// of being sent to a registry that has never heard of them.
+var sheduntuNames = []string{sheduntuName, "exeuntu"}
+
+func isSheduntu(ref string) bool {
+	for _, name := range sheduntuNames {
+		if ref == name || ref == name+":latest" {
+			return true
+		}
+	}
+	return false
 }
 
-// ensureImage resolves any image reference, treating exeuntu specially.
+// ensureImage resolves any image reference, treating sheduntu specially.
 func (m *Manager) ensureImage(ctx context.Context, ref string, progress io.Writer) (vmspec.ImageInfo, string, error) {
-	if isExeuntu(ref) {
-		return m.ensureExeuntu(ctx, progress)
+	if isSheduntu(ref) {
+		return m.ensureSheduntu(ctx, progress)
 	}
 	return m.prep.EnsureImage(ctx, ref)
 }
 
-func (m *Manager) ensureExeuntu(ctx context.Context, progress io.Writer) (vmspec.ImageInfo, string, error) {
-	sum := sha256.Sum256([]byte(exeuntuVersion + "\x00" + exeuntuScript))
+func (m *Manager) ensureSheduntu(ctx context.Context, progress io.Writer) (vmspec.ImageInfo, string, error) {
+	sum := sha256.Sum256([]byte(sheduntuVersion + "\x00" + sheduntuScript))
 	tag := hex.EncodeToString(sum[:])[:12]
-	imgPath := filepath.Join(m.cfg.CacheDir, "base", "exeuntu-"+tag+".img")
+	imgPath := filepath.Join(m.cfg.CacheDir, "base", "sheduntu-"+tag+".img")
 	infoPath := imgPath + ".json"
 
 	if info, err := loadImageInfo(infoPath); err == nil {
@@ -249,12 +263,12 @@ func (m *Manager) ensureExeuntu(ctx context.Context, progress io.Writer) (vmspec
 		}
 	}
 
-	_, basePath, err := m.prep.EnsureImage(ctx, exeuntuBase)
+	_, basePath, err := m.prep.EnsureImage(ctx, sheduntuBase)
 	if err != nil {
-		return vmspec.ImageInfo{}, "", fmt.Errorf("exeuntu base %s: %w", exeuntuBase, err)
+		return vmspec.ImageInfo{}, "", fmt.Errorf("sheduntu base %s: %w", sheduntuBase, err)
 	}
 
-	fmt.Fprintf(progress, "baking the exeuntu image (first time only, a few minutes)...\n")
+	fmt.Fprintf(progress, "baking the sheduntu image (first time only, a few minutes)...\n")
 
 	bakeDir, err := os.MkdirTemp("", "shed-bake-*")
 	if err != nil {
@@ -268,10 +282,10 @@ func (m *Manager) ensureExeuntu(ctx context.Context, progress io.Writer) (vmspec
 
 	bctx, cancel := context.WithTimeout(ctx, 15*time.Minute)
 	defer cancel()
-	serialLog := filepath.Join(m.cfg.CacheDir, "exeuntu-bake.log")
+	serialLog := filepath.Join(m.cfg.CacheDir, "sheduntu-bake.log")
 	run, err := m.be.Start(bctx, backend.StartRequest{
 		Spec: vmspec.Spec{
-			Name: "exeuntu-bake", Image: exeuntuBase,
+			Name: "sheduntu-bake", Image: sheduntuBase,
 			CPUs: 2, MemoryMB: 2048, DiskGB: 8,
 			Created: time.Now().UTC(),
 		},
@@ -280,9 +294,9 @@ func (m *Manager) ensureExeuntu(ctx context.Context, progress io.Writer) (vmspec
 		KernelPath:    m.kernel,
 		SerialLogPath: serialLog,
 		GuestConfig: vsockproto.Config{
-			Hostname:       "exeuntu",
+			Hostname:       "sheduntu",
 			AuthorizedKeys: m.guestKeys(),
-			BakeScript:     exeuntuScript,
+			BakeScript:     sheduntuScript,
 		},
 	})
 	if err != nil {
@@ -298,11 +312,11 @@ func (m *Manager) ensureExeuntu(ctx context.Context, progress io.Writer) (vmspec
 
 	fmt.Fprintf(progress, "harvesting baked rootfs into base image...\n")
 	if err := diskfs.BuildBaseDisk(conn, imgPath, 16*1024*1024*1024); err != nil {
-		return vmspec.ImageInfo{}, "", fmt.Errorf("build exeuntu base: %w", err)
+		return vmspec.ImageInfo{}, "", fmt.Errorf("build sheduntu base: %w", err)
 	}
 
 	info := vmspec.ImageInfo{
-		Digest: "exeuntu:" + tag,
+		Digest: "sheduntu:" + tag,
 		Env:    []string{"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"},
 		Cmd:    []string{"/bin/bash"},
 	}
@@ -315,21 +329,25 @@ func (m *Manager) ensureExeuntu(ctx context.Context, progress io.Writer) (vmspec
 	defer cancel2()
 	run.Shutdown(shutdownCtx)
 
-	pruneOldExeuntu(filepath.Dir(imgPath), tag)
+	pruneOldSheduntu(filepath.Dir(imgPath), tag)
 	return info, imgPath, nil
 }
 
-// pruneOldExeuntu removes superseded exeuntu base images. Safe: VMs always
-// resolve "exeuntu" to the current bake on start, so older ones are
-// orphaned the moment a new bake lands.
-func pruneOldExeuntu(dir, keepTag string) {
-	matches, _ := filepath.Glob(filepath.Join(dir, "exeuntu-*.img"))
-	for _, m := range matches {
-		if m == filepath.Join(dir, "exeuntu-"+keepTag+".img") {
-			continue
+// pruneOldSheduntu removes superseded base images. Safe: VMs always
+// resolve the image to the current bake on start, so older ones are
+// orphaned the moment a new bake lands. Both names are swept, or the
+// last exeuntu-*.img would sit in the cache forever.
+func pruneOldSheduntu(dir, keepTag string) {
+	keep := filepath.Join(dir, sheduntuName+"-"+keepTag+".img")
+	for _, name := range sheduntuNames {
+		matches, _ := filepath.Glob(filepath.Join(dir, name+"-*.img"))
+		for _, m := range matches {
+			if m == keep {
+				continue
+			}
+			os.Remove(m)
+			os.Remove(m + ".json")
 		}
-		os.Remove(m)
-		os.Remove(m + ".json")
 	}
 }
 
