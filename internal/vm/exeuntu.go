@@ -31,6 +31,11 @@ const (
 	exeuntuVersion = "v1" // bump to force a rebake (e.g. for upstream Ubuntu updates)
 
 	exeuntuScript = `set -eux
+# The Ubuntu OCI image drops /usr/share/doc/*, and that is where Debian
+# ships fzf's shell integration. Keep fzf's examples, nothing else. (Read
+# after the image's own "excludes" file, which is why the zz- name.)
+echo 'path-include=/usr/share/doc/fzf/examples/*' > /etc/dpkg/dpkg.cfg.d/zz-fzf-examples
+
 apt-get update
 apt-get install -y --no-install-recommends \
   ca-certificates curl wget git vim nano less htop tmux ncurses-term \
@@ -45,9 +50,9 @@ apt-get clean
 ln -sf /usr/bin/batcat /usr/local/bin/bat
 ln -sf /usr/bin/fdfind /usr/local/bin/fd
 
-# Recorded in the bake log so the .zshrc source paths below can be checked
-# against reality when the packaging moves them.
-dpkg -L fzf | grep -i zsh || true
+# On-disk check, recorded in the bake log: dpkg -L would list these even
+# when they were never unpacked, which is the whole trap above.
+ls -l /usr/share/doc/fzf/examples/*.zsh || true
 
 # Toolchain managers, system-wide so scripts and cron see them without
 # shell activation: the image owns the machine, mise owns the work.
