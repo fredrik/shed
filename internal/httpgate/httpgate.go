@@ -12,6 +12,8 @@ import (
 	"crypto/subtle"
 	"encoding/hex"
 	"fmt"
+	"html"
+	"html/template"
 	"log"
 	"net"
 	"net/http"
@@ -20,6 +22,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/fredrik/shed/internal/httpgate/webui"
 	"github.com/fredrik/shed/internal/vm"
 	"github.com/fredrik/shed/internal/vm/vmspec"
 )
@@ -36,6 +39,9 @@ type Server struct {
 
 	srv *http.Server
 }
+
+// assets serves the gate's favicon and preview image (see webui).
+var assets = webui.Handler()
 
 // EnsureSecret loads or creates the HMAC key used to sign share tokens.
 func (s *Server) EnsureSecret(path string) error {
@@ -85,6 +91,13 @@ func (s *Server) hostWithPort(host string) string {
 }
 
 func (s *Server) handle(w http.ResponseWriter, r *http.Request) {
+	// Our own favicon and preview image, on every host: an unfurler that
+	// hits a private vm's page needs the og:image without a token.
+	if strings.HasPrefix(r.URL.Path, webui.Prefix) {
+		assets.ServeHTTP(w, r)
+		return
+	}
+
 	host := r.Host
 	if h, _, err := net.SplitHostPort(host); err == nil {
 		host = h
@@ -98,9 +111,9 @@ func (s *Server) handle(w http.ResponseWriter, r *http.Request) {
 
 	rec, ok := s.Mgr.Get(name)
 	if !ok {
-		s.page(w, http.StatusNotFound, "no such vm",
+		s.page(w, r, http.StatusNotFound, "no such vm",
 			fmt.Sprintf("There is no vm named %q.", name),
-			fmt.Sprintf("Create it: <code>ssh shed new %s</code>", name))
+			fmt.Sprintf("Create it: <code>ssh shed new %s</code>", html.EscapeString(name)))
 		return
 	}
 
@@ -109,14 +122,14 @@ func (s *Server) handle(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if rec.State != vmspec.StateRunning {
-		s.page(w, http.StatusBadGateway, "vm is "+string(rec.State),
+		s.page(w, r, http.StatusBadGateway, "vm is "+string(rec.State),
 			fmt.Sprintf("vm %q is %s.", name, rec.State),
-			fmt.Sprintf("Start it: <code>ssh shed start %s</code>", name))
+			fmt.Sprintf("Start it: <code>ssh shed start %s</code>", html.EscapeString(name)))
 		return
 	}
 	run, ok := s.Mgr.Running(name)
 	if !ok {
-		s.page(w, http.StatusBadGateway, "vm not reachable", "The vm stopped just now.", "")
+		s.page(w, r, http.StatusBadGateway, "vm not reachable", "The vm stopped just now.", "")
 		return
 	}
 
@@ -134,9 +147,9 @@ func (s *Server) handle(w http.ResponseWriter, r *http.Request) {
 			},
 		},
 		ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
-			s.page(w, http.StatusBadGateway, "nothing listening",
+			s.page(w, r, http.StatusBadGateway, "nothing listening",
 				fmt.Sprintf("vm %q is running but nothing answered on port %d.", name, port),
-				fmt.Sprintf("Change the port: <code>ssh shed share port %s &lt;port&gt;</code>", name))
+				fmt.Sprintf("Change the port: <code>ssh shed share port %s &lt;port&gt;</code>", html.EscapeString(name)))
 		},
 	}
 	proxy.ServeHTTP(w, r)
@@ -168,15 +181,15 @@ func (s *Server) authorized(w http.ResponseWriter, r *http.Request, rec vmspec.V
 	if c, err := r.Cookie(cookieName); err == nil && s.validToken(name, c.Value) {
 		return true
 	}
-	s.page(w, http.StatusForbidden, "private vm",
+	s.page(w, r, http.StatusForbidden, "private vm",
 		fmt.Sprintf("vm %q is private.", name),
-		fmt.Sprintf("Get a link: <code>ssh shed share %s</code> — or make it public: <code>ssh shed share set-public %s</code>", name, name))
+		fmt.Sprintf("Get a link: <code>ssh shed share %s</code> — or make it public: <code>ssh shed share set-public %s</code>", html.EscapeString(name), html.EscapeString(name)))
 	return false
 }
 
 func (s *Server) landing(w http.ResponseWriter, r *http.Request) {
-	s.page(w, http.StatusOK, "shed",
-		"This is the shed HTTP front door.",
+	s.page(w, r, http.StatusOK, "shed",
+		"Linux microVMs on your Mac, over ssh. This is the shed HTTP front door.",
 		"Each vm is reachable at <code>http://&lt;name&gt;."+s.hostWithPort(s.Suffix)+"</code>. List yours: <code>ssh shed ls</code>")
 }
 
@@ -192,23 +205,18 @@ func TargetPort(rec vmspec.VM) int {
 	return DefaultPort
 }
 
-func (s *Server) page(w http.ResponseWriter, code int, title, lead, hint string) {
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.WriteHeader(code)
-	fmt.Fprintf(w, pageHTML, title, title, lead, hint)
+// page renders one of the gate's own pages; lead is plain text, hint may
+// carry <code> markup (escape anything user-controlled you put in it).
+func (s *Server) page(w http.ResponseWriter, r *http.Request, code int, title, lead, hint string) {
+	base := webui.BaseURL(r)
+	webui.Render(w, code, webui.Page{
+		Title: title,
+		Lead:  lead,
+		Hint:  template.HTML(hint),
+		Base:  base,
+		URL:   base + r.URL.EscapedPath(),
+	})
 }
-
-const pageHTML = `<!doctype html>
-<html><head><meta charset="utf-8"><title>%s · shed</title>
-<style>
-body{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;background:#101418;color:#d8dee6;display:grid;place-items:center;min-height:100vh;margin:0}
-main{max-width:34rem;padding:2rem}
-h1{font-size:1.2rem;margin:0 0 .75rem}
-p{line-height:1.5;margin:.4rem 0;color:#9aa7b4}
-code{background:#1c242c;color:#7fd0a0;padding:.15rem .4rem;border-radius:4px}
-</style></head>
-<body><main><h1>▲ %s</h1><p>%s</p><p>%s</p></main></body></html>
-`
 
 // URLWithToken builds the tokened share URL for a VM.
 func (s *Server) URLWithToken(name string) string {

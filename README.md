@@ -64,7 +64,10 @@ One daemon (`shedd`) runs three things:
 - **HTTP front door** (127.0.0.1:8080). `http://<vm>.shed.localhost:8080`
   proxies to the VM — the smallest `EXPOSE`d port, or `share port`. VMs are
   private by default; `ssh shed share <vm>` prints a signed link,
-  `share set-public` opens it up.
+  `share set-public` opens it up. The gate's own pages (landing, "private
+  vm", "no such vm") carry a favicon and Open Graph preview so a pasted
+  link unfurls nicely; those assets live under the reserved path
+  `/_shed/` on every host.
 
 Inside every VM, a small static Go agent (`shedguest`) rides the initramfs
 as pid 1: it assembles the overlay root, DHCPs on the NAT network, installs

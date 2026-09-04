@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <defs>
+    <clipPath id="frame"><rect width="1200" height="630"/></clipPath>
+  </defs>
+  <rect width="1200" height="630" fill="#FFF6EA"/>
+  <!-- Rekorderlig flavour stripes, tilted along the right edge -->
+  <g clip-path="url(#frame)">
+    <g transform="translate(1010 0) rotate(-16 170 315)">
+      <rect x="0"   y="-300" width="68" height="1300" fill="#E9536F"/>
+      <rect x="68"  y="-300" width="68" height="1300" fill="#F6B62E"/>
+      <rect x="136" y="-300" width="68" height="1300" fill="#A9D141"/>
+      <rect x="204" y="-300" width="68" height="1300" fill="#6B3E91"/>
+      <rect x="272" y="-300" width="68" height="1300" fill="#F58A5A"/>
+      <rect x="340" y="-300" width="68" height="1300" fill="#E9536F"/>
+    </g>
+  </g>
+  <!-- shed mark -->
+  <g transform="translate(96 150) scale(5.2)">
+    <rect x="10" y="50" width="44" height="6" rx="3" fill="#A9D141"/>
+    <rect x="16" y="30" width="32" height="22" fill="#6B3E91"/>
+    <polygon points="8,33 32,11 56,33" fill="#E9536F"/>
+    <rect x="27" y="37" width="10" height="15" rx="1.5" fill="#F6B62E"/>
+  </g>
+  <text x="430" y="300" font-family="DejaVu Sans Mono, ui-monospace, monospace" font-weight="bold" font-size="168" fill="#241E2C">shed</text>
+  <text x="436" y="368" font-family="DejaVu Sans, sans-serif" font-size="34" fill="#5E5568">Linux microVMs on your Mac, over ssh.</text>
+  <rect x="436" y="412" width="392" height="66" rx="14" fill="#241E2C"/>
+  <text x="462" y="457" font-family="DejaVu Sans Mono, ui-monospace, monospace" font-size="34" fill="#A9D141">$ ssh box@shed</text>
+</svg>

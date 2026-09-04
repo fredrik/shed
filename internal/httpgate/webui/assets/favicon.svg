@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- shed favicon · Rekorderlig palette: strawberry, lime, wild berries, passionfruit on cream -->
+  <rect width="64" height="64" rx="14" fill="#FFF6EA"/>
+  <rect x="10" y="50" width="44" height="6" rx="3" fill="#A9D141"/>
+  <rect x="16" y="30" width="32" height="22" fill="#6B3E91"/>
+  <polygon points="8,33 32,11 56,33" fill="#E9536F"/>
+  <rect x="27" y="37" width="10" height="15" rx="1.5" fill="#F6B62E"/>
+</svg>
