@@ -99,7 +99,7 @@ sequenceDiagram
     G->>M: Get("box") missing -> Create(name=box, defaults)
     M->>M: ensureImage (cache hit or pull/bake), EnsureDataDisk
     M->>B: Start(spec, base.img ro, data.img rw, kernel, initramfs, GuestConfig)
-    B->>A: boot; listen vsock 2048
+    B->>A: boot, listen vsock 2048
     A->>A: mount vda+vdb, overlayfs, switch_root
     A->>B: hello
     B->>A: config {hostname, keys, entrypoint, user}
@@ -111,7 +111,7 @@ sequenceDiagram
     G->>A: ssh handshake as root with broker key
     G->>A: pty-req, env, shell
     A->>A: run login shell as dev (or root), print motd
-    A-->>C: bytes relayed both ways; exit status propagated
+    A-->>C: bytes relayed both ways, exit status propagated
 ```
 
 Timing on the reference machine: a VM that already has a cached base

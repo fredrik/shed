@@ -51,7 +51,7 @@ graph LR
         workload["image ENTRYPOINT/CMD"]
     end
     sshc -->|"user=shed"| sshgate
-    sshc -->|"user=&lt;vm&gt;"| sshgate
+    sshc -->|"user=vmname"| sshgate
     shedcli -->|"ssh over unix socket"| sshgate
     browser --> httpgate
     sshgate --> control
