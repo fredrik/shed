@@ -3,12 +3,14 @@ package vm
 import (
 	"context"
 	"crypto/sha256"
+	_ "embed"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/fredrik/shed/internal/backend"
@@ -25,11 +27,20 @@ import (
 // It is baked locally, once:
 // a throwaway VM boots the upstream Ubuntu image, runs the recipe below,
 // and streams its merged rootfs back to become a cached base image.
-// The cache key covers only the version and the recipe, so a baked image
+// The cache key covers only the version and the rendered recipe, so a baked image
 // resolves offline — no registry round trip on the create path. Upstream
 // Ubuntu updates are picked up by bumping sheduntuVersion.
 
+// xtermGhosttyTerminfo is spliced into the recipe at sheduntuTerminfoMarker.
+// It lives in its own file because terminfo source contains backticks,
+// which a Go raw string cannot hold.
+//
+//go:embed xterm-ghostty.ti
+var xtermGhosttyTerminfo string
+
 const (
+	sheduntuTerminfoMarker = "@@XTERM_GHOSTTY_TERMINFO@@"
+
 	sheduntuName    = "sheduntu"
 	sheduntuBase    = "ubuntu:24.04"
 	sheduntuVersion = "v1" // bump to force a rebake (e.g. for upstream Ubuntu updates)
@@ -48,6 +59,15 @@ apt-get install -y --no-install-recommends \
   zsh zsh-autosuggestions zsh-syntax-highlighting \
   fzf bat fd-find zoxide tree
 apt-get clean
+
+# Ghostty's terminfo, system-wide. Ghostty's ssh integration otherwise
+# installs it per user over ssh on first connect and then caches the host
+# by name; a VM recreated under the same name would be assumed to have it
+# and get TERM=xterm-ghostty with nothing to back it. With the entry baked
+# in, the probe finds it and installs nothing.
+tic -x -o /usr/share/terminfo - <<'TERMINFO'
+@@XTERM_GHOSTTY_TERMINFO@@
+TERMINFO
 
 # Ubuntu renames these two to dodge name clashes; put the names everyone
 # actually types on the PATH.
@@ -229,6 +249,13 @@ printf '%b' '
 `
 )
 
+// renderSheduntuScript is the recipe as the guest runs it, with the
+// embedded files spliced in. Hash this, not sheduntuScript, so a change to
+// an embedded file rebakes too.
+func renderSheduntuScript() string {
+	return strings.Replace(sheduntuScript, sheduntuTerminfoMarker, strings.TrimRight(xtermGhosttyTerminfo, "\n"), 1)
+}
+
 func isSheduntu(ref string) bool {
 	return ref == sheduntuName || ref == sheduntuName+":latest"
 }
@@ -242,7 +269,8 @@ func (m *Manager) ensureImage(ctx context.Context, ref string, progress io.Write
 }
 
 func (m *Manager) ensureSheduntu(ctx context.Context, progress io.Writer) (vmspec.ImageInfo, string, error) {
-	sum := sha256.Sum256([]byte(sheduntuVersion + "\x00" + sheduntuScript))
+	script := renderSheduntuScript()
+	sum := sha256.Sum256([]byte(sheduntuVersion + "\x00" + script))
 	tag := hex.EncodeToString(sum[:])[:12]
 	imgPath := filepath.Join(m.cfg.CacheDir, "base", "sheduntu-"+tag+".img")
 	infoPath := imgPath + ".json"
@@ -286,7 +314,7 @@ func (m *Manager) ensureSheduntu(ctx context.Context, progress io.Writer) (vmspe
 		GuestConfig: vsockproto.Config{
 			Hostname:       "sheduntu",
 			AuthorizedKeys: m.guestKeys(),
-			BakeScript:     sheduntuScript,
+			BakeScript:     script,
 		},
 	})
 	if err != nil {
