@@ -188,3 +188,29 @@ func TestQuotedArgumentsParse(t *testing.T) {
 		t.Fatalf("unexpected error: %s", errOut)
 	}
 }
+
+// ghosttyProbe is the exec line Ghostty's ssh-terminfo shell integration
+// sends (verbatim from its zsh integration script) before every connection
+// to a host it has not cached yet.
+const ghosttyProbe = `
+                  infocmp xterm-ghostty >/dev/null 2>&1 && exit 0
+                  command -v tic >/dev/null 2>&1 || exit 1
+                  mkdir -p ~/.terminfo 2>/dev/null && tic -x - 2>/dev/null && exit 0
+                  exit 1
+                `
+
+func TestGhosttyTerminfoProbeSucceeds(t *testing.T) {
+	deps := newDeps(t)
+	sess := &fakeSession{cmd: ghosttyProbe}
+	sess.in.WriteString("xterm-ghostty|Ghostty,\n\tam, bce, ...\n")
+	code := Run(sess, deps)
+	if code != 0 {
+		t.Fatalf("probe exit code = %d, stderr: %s", code, sess.err.String())
+	}
+	if sess.out.Len() != 0 || sess.err.Len() != 0 {
+		t.Fatalf("probe should be silent, got out=%q err=%q", sess.out.String(), sess.err.String())
+	}
+	if sess.in.Len() != 0 {
+		t.Fatal("probe should drain the terminfo piped on stdin")
+	}
+}
