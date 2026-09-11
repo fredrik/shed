@@ -84,6 +84,19 @@ and no trailing whitespace; `printJSON` emits two-space-indented JSON.
 Errors returned from `RunE` are printed by cobra to the session's
 stderr as `Error: <msg>`, and the session exits 1.
 
+Output shapes worth knowing when scripting:
+
+- `new --json` prints the human progress line `creating <name> from
+  <image>...` (and any pull or bake progress) to **stdout before** the
+  JSON record, so consumers must skip to the first `{`. The record is
+  the full `vmspec.VM` (see [vm-lifecycle.md](vm-lifecycle.md)).
+- `ls --json` is a JSON array of records, `[]` when empty.
+- `rm --json` is `{"removed": ["a", "b"]}` after all removals succeed;
+  a failure part-way returns the error and no JSON.
+- `start|stop|restart`, `cp`, `rename` have no `--json`; they print
+  `vm <name> is <state>` lines.
+- `share <vm>` and `browser <vm>` print a bare URL and nothing else.
+
 ## Design notes
 
 **Why cobra bound to a session rather than a bespoke parser.** Free

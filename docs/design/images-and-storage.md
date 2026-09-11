@@ -54,6 +54,13 @@ kernel refuses to write to it even by accident.
 A mutex in `OCIPreparer` serialises builds; they take seconds and
 concurrency would only fight over the same file.
 
+`EnsureImage` runs on **every Start** as well as on Create, because the
+manager does not store the base disk path (see
+[vm-lifecycle.md](vm-lifecycle.md)). Step 1 happens before step 3, so
+starting a registry-image VM always contacts the registry, and a moved
+tag yields a different base disk on the next start. Only the sheduntu
+path (below) is offline after its first bake.
+
 ### Data disks
 
 `diskfs.NewDataDisk(path, bytes)` creates the file, truncates it to the
@@ -114,14 +121,52 @@ Details worth knowing:
   `<cache>/sheduntu-bake.log`, which is where a failed bake tells its
   story. Its data disk lives in a temp directory that is removed
   afterwards. The overall budget is 15 min.
-- **The recipe** (the `sheduntuScript` constant) installs the everyday
-  tool set with apt, mise and uv system-wide, starship, seeds skel
-  dotfiles (zsh with fzf, zoxide, autosuggestions and syntax
-  highlighting; tmux; mise with node 24; uv tuned for ext4), replaces
-  the stock `ubuntu` user with `dev` (uid 1000, zsh, passwordless
-  sudo), pre-warms node and a uv-managed python as `dev`, builds the
-  zsh completion dump, and writes `/etc/motd` with a `<vmname>`
-  placeholder.
+- **The recipe** is the `sheduntuScript` constant in
+  `internal/vm/sheduntu.go`, run with `set -eux`. That file is the
+  source of truth (the cache tag hashes its exact bytes); what follows
+  is a complete inventory of what it does, in order.
+  1. `dpkg` config `zz-fzf-examples` with
+     `path-include=/usr/share/doc/fzf/examples/*`, so fzf's shell
+     integration survives Ubuntu's doc-stripping.
+  2. `apt-get install --no-install-recommends` of: `ca-certificates
+     curl wget git vim nano less htop tmux ncurses-term ripgrep jq
+     unzip zip file rsync openssh-client sudo iproute2 iputils-ping
+     dnsutils netcat-openbsd python3 zsh zsh-autosuggestions
+     zsh-syntax-highlighting fzf bat fd-find zoxide tree`, then
+     `apt-get clean`.
+  3. Symlinks `/usr/local/bin/bat → /usr/bin/batcat` and
+     `/usr/local/bin/fd → /usr/bin/fdfind`.
+  4. Installers, all into `/usr/local/bin`: mise (`https://mise.run`,
+     `MISE_INSTALL_PATH`), uv (`https://astral.sh/uv/install.sh`,
+     `UV_INSTALL_DIR`, no PATH modification), starship
+     (`https://starship.rs/install.sh -y -b /usr/local/bin`).
+  5. Skel files under `/etc/skel`, inherited by the user created in
+     step 6: `.sudo_as_admin_successful` (suppresses Ubuntu's sudo
+     lecture); `.bashrc` appended with `eval "$(mise activate bash)"`;
+     `.config/mise/config.toml` with `trusted_config_paths = ["~"]`
+     and `node = "24"`; `.config/uv/uv.toml` with `python-preference =
+     "managed"`, `link-mode = "hardlink"`, `compile-bytecode = true`;
+     `.zshrc` (history 100000 shared and deduped, `compinit -C`, menu
+     completion, case-insensitive matching, starship, mise, fzf
+     key-bindings and completion sourced defensively, zoxide,
+     autosuggestions then syntax-highlighting last, `ls`/`ll`/`grep`
+     aliases); `.config/starship.toml` (plain-unicode prompt:
+     directory, git branch and status, node/python/go/rust versions,
+     command duration over 2 s, `>` prompt character); and
+     `.config/tmux/tmux.conf` (tmux-256color with truecolor
+     overrides, mouse on, 10 ms escape time, 100000 line history,
+     1-based window and pane indices, renumbering).
+  6. `userdel -r ubuntu`; `useradd -m -u 1000 -s /usr/bin/zsh dev`;
+     `usermod -aG sudo dev`; `/etc/sudoers.d/dev` containing `dev
+     ALL=(ALL) NOPASSWD:ALL`, mode 0440.
+  7. As `dev` (with `su - dev -s /bin/bash`): `mise install` (node 24
+     from the skel config), `uv python install --default 3.14` (falls
+     back to a non-default install), and `zsh -ic exit` to build the
+     completion dump.
+  8. `/etc/motd` written with ANSI colour and the literal placeholder
+     `<vmname>`, which the agent replaces at login.
+
+  Recipe version constant: `sheduntuVersion = "v1"`.
 - **Harvest.** The guest tars its merged root in parent-before-child
   order (tar2ext4 requires it), preserving uid/gid and detecting
   hardlinks by inode, and skips virtual filesystems, `/.shed`,
@@ -142,9 +187,15 @@ it (`ssh shed new` stdout or a brokered session's stderr).
 downloading it on first use. The source is the Kata Containers 3.28.0
 release tarball for arm64 (zstd-compressed tar, about 600 MB); the
 member extracted is `opt/kata/share/kata-containers/vmlinux-6.18.15-186`
-(about 16 MB). The extracted file's SHA-256 must match a constant pinned
-in the package; a mismatch deletes the download and fails. The cached
-file is re-hashed on every daemon start, so a corrupted cache is caught.
+(about 16 MB). The extracted file's SHA-256 must match the pinned
+value; a mismatch deletes the download and fails. The cached file is
+re-hashed on every daemon start, so a corrupted cache is caught.
+
+```
+URL     https://github.com/kata-containers/kata-containers/releases/download/3.28.0/kata-static-3.28.0-arm64.tar.zst
+member  opt/kata/share/kata-containers/vmlinux-6.18.15-186
+sha256  2fe4a58d2885d623bcb4d705900ac8c1d4f02371152da8126b3b00c8c47fc3a1   (of the extracted Image)
+```
 
 This is the kernel Apple's own `container` stack direct-boots. It is
 monolithic (no modules) with virtio blk/net/console/vsock, ext4 and
@@ -249,9 +300,13 @@ version bump is the manual valve.
 - Bake skip list: `/proc /sys /dev /run /tmp /.shed /lost+found
   /etc/hostname /etc/resolv.conf /root/.ssh/authorized_keys
   /var/lib/apt/lists /var/cache/apt`, plus sockets and fifos.
-- Kernel: Kata 3.28.0 arm64 release tarball, member
-  `opt/kata/share/kata-containers/vmlinux-6.18.15-186`, SHA-256 pinned,
+- Kernel: Kata 3.28.0 arm64 release tarball
+  (`.../releases/download/3.28.0/kata-static-3.28.0-arm64.tar.zst`),
+  member `opt/kata/share/kata-containers/vmlinux-6.18.15-186`, SHA-256
+  `2fe4a58d2885d623bcb4d705900ac8c1d4f02371152da8126b3b00c8c47fc3a1`,
   cached at `<cache>/kernel/3.28.0/Image`, verified on every start.
+- Image resolution runs on Create and on every Start; registry images
+  fetch the manifest each time, sheduntu resolves offline once baked.
 - Initramfs: uncompressed newc cpio; entries `dev proc sys newroot
   lower data` (dirs), `dev/console` (c 5 1), `init` (agent); written
   to `<state>/initramfs.cpio` on every start.

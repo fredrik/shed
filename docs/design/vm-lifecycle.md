@@ -39,10 +39,56 @@ VM
   ip              string     last known guest IP, cleared when stopped
 ```
 
-`ImageInfo` is captured once at create time so that later starts do not
-re-pull or re-resolve the image reference. The base disk path is not
-stored; it is re-derived from the image on every start because the
-cache may have been pruned.
+`ImageInfo` is captured once at create time and never updated. The
+base disk path is not stored; **every Start re-resolves
+`spec.image`** to find it, because the cache may have been pruned. What
+that costs depends on the image:
+
+- `sheduntu` resolves from the cached bake by recipe hash, offline.
+- Any registry image goes through the OCI preparer, which fetches the
+  manifest from the registry **before** checking for a cached base
+  disk. Starting such a VM therefore needs network access, and if the
+  tag has moved since create, a new base disk is built and booted
+  while the record keeps the entrypoint, cmd, env and exposed ports
+  from the original resolution.
+
+The comment on `ImageInfo` in `vmspec` says it is kept "so starts don't
+re-pull"; that is true of the metadata and layers (layer downloads are
+lazy and a cached base disk skips them) but not of the manifest fetch.
+This is listed as a known gap in [decisions.md](decisions.md).
+
+A representative record, as written by Go's `encoding/json` (fields
+tagged `omitempty` are absent when zero; `created` is RFC 3339 with
+nanoseconds in UTC):
+
+```json
+{
+  "spec": {
+    "name": "web",
+    "image": "nginx:latest",
+    "cpus": 2,
+    "memory_mb": 1024,
+    "disk_gb": 10,
+    "created": "2026-09-11T09:41:12.503271Z"
+  },
+  "image": {
+    "digest": "sha256:9a1f...e3",
+    "entrypoint": ["/docker-entrypoint.sh"],
+    "cmd": ["nginx", "-g", "daemon off;"],
+    "env": ["PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin", "NGINX_VERSION=1.27.0"],
+    "exposed_ports": [80]
+  },
+  "share": {},
+  "state": "stopped",
+  "last_stop_reason": "requested"
+}
+```
+
+A sheduntu VM's `image` block has `digest` `"sheduntu:<tag>"`, `cmd`
+`["/bin/bash"]`, a single `PATH` entry in `env`, and no
+`exposed_ports`. `share` is always present as an object, empty when
+nothing is set. `autostart`, `ip` and `last_stop_reason` appear only
+when non-zero.
 
 Names double as ssh usernames, guest hostnames and URL host labels,
 which is why the character set is so narrow. The name also seeds the
@@ -223,6 +269,14 @@ say so and boot on demand.
 - States: `creating stopped starting running stopping error`.
 - Start preconditions: state `stopped` or `error`, not busy, cpu and
   memory within pool. `running` → no-op success.
+- Start re-resolves `spec.image` for the base disk path: registry
+  images fetch the manifest (network required, tag drift possible);
+  `sheduntu` resolves offline. The record's `image` block is never
+  updated after create.
+- Record serialization: `encoding/json`, two-space indent, trailing
+  newline; `created` RFC 3339 nano UTC; `omitempty` on `autostart`,
+  `ip`, `last_stop_reason`, and all `image` fields except `digest`,
+  and all `share` fields; `share` itself always present.
 - Stop precondition: `running` with live handle, not busy.
 - Rename precondition: not `running`/`starting`, not busy.
 - Recover: any state other than `stopped`/`error` → `stopped`,

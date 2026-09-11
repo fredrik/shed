@@ -314,27 +314,46 @@ not reclaimed (the old initramfs is not unmounted).
 
 ## Known gaps
 
-These follow from the decisions above and are not currently addressed.
-They are the first candidates for follow-up work.
+These are consequences of the decisions above and are not currently
+addressed. The first group is **intended behaviour** that a
+re-implementation should reproduce (or knowingly diverge from). The
+second group is **incidental**: behaviour nobody chose, which an
+implementation is free to fix without being "incompatible".
+
+### Intended, by decision
 
 - **No TLS on the front door** (D17). Loopback only, single user.
-- **No `ssh -R`, no agent forwarding, no terminal-mode relay** (D5).
-  The broker only relays what it explicitly mirrors.
+- **No `ssh -R`, no agent forwarding** (D5). Not yet relayed.
+- **`ssh -L` ignores the destination host** (D13). Every destination is
+  the guest itself.
+- **systemd is not executed** (D10). `systemctl` fails inside VMs.
+- **VMs die with the daemon** (D2). Reconciled, not survived.
+- **No disk growth after create** (D8).
+- **Kernel modules cannot be loaded** (D9).
+- **Foreground daemon only**; no launchd integration (D2).
+- **HTTP never boots a VM** (D17).
+
+### Incidental, fixable without breaking the design
+
+- **Start re-resolves registry images online** (D6, D7). The base disk
+  path is not stored, and the OCI preparer fetches the manifest before
+  checking the cache. Starting a registry-image VM requires network,
+  and a moved tag boots a new base while the record's entrypoint, cmd,
+  env and exposed ports stay from create time. Storing the digest-keyed
+  base path, or checking the cache by the recorded digest first, would
+  fix both. sheduntu is unaffected.
 - **Client environment variables are not applied guest-side.** The
   gateway forwards `env` requests and the guest server accepts them,
   but the session handler builds the child environment from scratch
   and ignores them (D19).
-- **`ssh -L` ignores the destination host** (D13). Every destination is
-  the guest itself.
+- **Terminal modes are not relayed** (D5). Only term type and window
+  size cross the broker.
 - **No orphan reaper in pid 1** (D10). The agent waits only on children
   it started; processes re-parented to pid 1 after their parent exits
   become zombies.
-- **systemd is not executed** (D10). `systemctl` fails inside VMs.
-- **VMs die with the daemon** (D2). Reconciled, not survived.
-- **No disk growth after create** (D8).
 - **Bake VM is not pool-accounted** (D18). A bake on a saturated pool
   still runs.
 - **The vsock port 22 sshd listener is unused by the host** (D11,
   D13); the forwarder path is what the fallback actually uses.
-- **Kernel modules cannot be loaded** (D9).
-- **Foreground daemon only**; no launchd integration (D2).
+- **`new --json` prints a progress line before the JSON** (D3). Output
+  is not pure JSON.
