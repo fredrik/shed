@@ -1,7 +1,6 @@
 package sshgate
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"net"
@@ -108,10 +107,11 @@ func TestControlSocket(t *testing.T) {
 			t.Fatal(err)
 		}
 		defer sess.Close()
-		var out bytes.Buffer
-		sess.Stdout = &out
-		sess.Stderr = &out
-		return sess.Run(cmd), out.String()
+		// CombinedOutput funnels stdout and stderr through one
+		// mutex-guarded writer; sharing a bytes.Buffer between the
+		// two copy goroutines races and corrupts the output.
+		out, err := sess.CombinedOutput(cmd)
+		return err, string(out)
 	}
 
 	if err, out := run("ls --json"); err != nil || strings.TrimSpace(out) != "[]" {
