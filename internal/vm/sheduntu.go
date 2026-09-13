@@ -144,26 +144,45 @@ alias ll='ls -lah'
 alias grep='grep --color=auto'
 RC
 
-# Plain unicode only: these glyphs render in the host's terminal, which we
-# do not control, so the default has to look right everywhere.
+# Plain unicode only (box drawing, a chevron): these glyphs render in the
+# host's terminal, which we do not control, so the default has to look
+# right everywhere.
 cat > /etc/skel/.config/starship.toml <<'TOML'
 # sheduntu prompt. Nerd Font in your terminal? One command upgrades it:
 #   starship preset nerd-font-symbols -o ~/.config/starship.toml
+#
+#   ┌ dev@fjord shed on main [!?] via node v24.1.0 took 3s
+#   └ ❯
+#
+# The frame ties the info line to the input line; the chevron turns red
+# when the last command failed. dev is you; the host is this VM's name.
 format = """
-$directory$git_branch$git_status$nodejs$python$golang$rust$cmd_duration
-$character"""
+[┌](dimmed) $username$hostname$directory$git_branch$git_status$nodejs$python$golang$rust$cmd_duration
+[└](dimmed) $character"""
+
+[username]
+show_always = true
+format = "[$user]($style)"
+style_user = "bold green"
+
+[hostname]
+ssh_only = false
+format = "[@$hostname]($style) "
+style = "bold green"
 
 [character]
-success_symbol = "[>](bold green)"
-error_symbol = "[>](bold red)"
+success_symbol = "[❯](bold green)"
+error_symbol = "[❯](bold red)"
 
 [directory]
 style = "bold cyan"
 truncation_length = 3
 truncate_to_repo = true
+read_only = " ro"
+read_only_style = "dimmed"
 
 [git_branch]
-symbol = "git:"
+symbol = ""
 style = "bold magenta"
 
 [git_status]
