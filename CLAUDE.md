@@ -46,3 +46,6 @@ obvious from the code.
   internal/vm/sheduntu.go (recipe and cache-key logic live there); cached
   as `~/Library/Caches/shed/base/sheduntu-<hash>.img` with a .json sidecar.
   Recipe or upstream-digest changes rebake on next use (about a minute).
+  VMs are pinned to the base they were created on (vm.json image.digest,
+  see internal/vm/basedisk.go); a rebake never changes an existing VM's
+  lower layer, and prune keeps every bake a VM still references.

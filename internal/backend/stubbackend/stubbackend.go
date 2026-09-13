@@ -16,6 +16,7 @@ import (
 type Backend struct {
 	mu      sync.Mutex
 	started int
+	last    backend.StartRequest
 	// FailStart makes the next Start fail.
 	FailStart error
 	// Dial serves DialGuest connections; nil rejects them.
@@ -45,6 +46,13 @@ func (b *Backend) Started() int {
 	return b.started
 }
 
+// LastStart returns the most recent successful Start request.
+func (b *Backend) LastStart() backend.StartRequest {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.last
+}
+
 func (b *Backend) Start(ctx context.Context, req backend.StartRequest) (backend.RunningVM, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
@@ -54,6 +62,7 @@ func (b *Backend) Start(ctx context.Context, req backend.StartRequest) (backend.
 		return nil, err
 	}
 	b.started++
+	b.last = req
 	return &VM{
 		name: req.Spec.Name,
 		ip:   net.IPv4(198, 51, 100, byte(b.started)),
