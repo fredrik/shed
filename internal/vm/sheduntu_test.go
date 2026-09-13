@@ -17,7 +17,7 @@ func TestIsSheduntu(t *testing.T) {
 	// exeuntu was this image's name until it grew its own taste. Nothing
 	// refers to it any more, and it is an ordinary registry ref now.
 	for _, ref := range []string{
-		"ubuntu:24.04", "exeuntu", "sheduntu:v1", "notsheduntu", "",
+		"ubuntu:26.04", "exeuntu", "sheduntu:v1", "notsheduntu", "",
 	} {
 		if isSheduntu(ref) {
 			t.Errorf("isSheduntu(%q) = true, want false", ref)
@@ -42,7 +42,7 @@ func TestPruneOldSheduntu(t *testing.T) {
 	// Referenced by a VM record; superseded, but must survive.
 	pinned := write("sheduntu-cccccccccccc.img")
 	pinnedJSON := write("sheduntu-cccccccccccc.img.json")
-	other := write("ubuntu-24.04.img")
+	other := write("ubuntu-26.04.img")
 
 	pruneOldSheduntu(dir, map[string]bool{"aaaaaaaaaaaa": true, "cccccccccccc": true})
 
