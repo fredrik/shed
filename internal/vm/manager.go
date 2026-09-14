@@ -73,6 +73,7 @@ func (m *Manager) Recover() error {
 			rec.State = vmspec.StateStopped
 			rec.LastStopReason = "daemon restart"
 			rec.IP = ""
+			rec.StartedAt = time.Time{}
 			if err := m.st.SaveVM(rec); err != nil {
 				return err
 			}
@@ -318,6 +319,7 @@ func (m *Manager) Start(ctx context.Context, name string) error {
 	m.mu.Lock()
 	e.run = run
 	e.rec.State = vmspec.StateRunning
+	e.rec.StartedAt = time.Now().UTC()
 	e.rec.LastStopReason = ""
 	if ip, ok := run.GuestIP(); ok {
 		e.rec.IP = ip.String()
@@ -356,6 +358,7 @@ func (m *Manager) settle(e *entry, run backend.RunningVM) {
 	}
 	e.run = nil
 	e.rec.IP = ""
+	e.rec.StartedAt = time.Time{}
 	if e.rec.State == vmspec.StateRunning {
 		e.rec.State = vmspec.StateStopped
 		e.rec.LastStopReason = "guest powered off"

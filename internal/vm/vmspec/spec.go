@@ -56,6 +56,7 @@ type VM struct {
 	Image          ImageInfo `json:"image"`
 	Share          Share     `json:"share"`
 	State          State     `json:"state"`
+	StartedAt      time.Time `json:"started_at,omitempty"` // when it last booted, valid while running
 	LastStopReason string    `json:"last_stop_reason,omitempty"`
 	IP             string    `json:"ip,omitempty"` // last known, valid while running
 }
