@@ -87,3 +87,22 @@ func TestSheduntuScriptBakesGhosttyTerminfo(t *testing.T) {
 		}
 	}
 }
+
+func TestSheduntuScriptInstallsClaudeCode(t *testing.T) {
+	script := renderSheduntuScript()
+	// The native installer is per-user by design (it self-updates under
+	// $HOME), so it has to run as dev, not as the baking root.
+	if !strings.Contains(script, "su - dev -s /bin/bash -c 'curl -fsSL https://claude.ai/install.sh | bash'") {
+		t.Fatal("bake script does not install Claude Code for dev")
+	}
+	// ...and dev's zsh has to find ~/.local/bin without Ubuntu's .profile.
+	start := strings.Index(script, "cat > /etc/skel/.zshrc")
+	if start < 0 {
+		t.Fatal("bake script writes no skel .zshrc")
+	}
+	zshrc := script[start:]
+	zshrc = zshrc[:strings.Index(zshrc, "\nRC\n")]
+	if !strings.Contains(zshrc, "path=(~/.local/bin $path)") {
+		t.Fatal("skel .zshrc does not put ~/.local/bin on the PATH")
+	}
+}
