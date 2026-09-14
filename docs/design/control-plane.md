@@ -64,7 +64,7 @@ and no trailing whitespace; `printJSON` emits two-space-indented JSON.
 | Command | Semantics |
 |---------|-----------|
 | `new [name] [--image ref] [--cpu N] [--memory MB] [--disk GB] [--autostart] [--no-start] [--json]` | Creates a VM via `Manager.Create` with a 10 min context. Missing name is generated as `<adjective>-<noun>` from two 20-word lists, retried until unused. Zero-valued flags mean "use config default". Prints progress (pull, bake) to stdout as it happens, then the state, the ssh hint and the URL. |
-| `ls [-l] [--json]` | Lists VMs sorted by creation time. Columns `NAME IMAGE STATE URL`; `-l` adds `CPU MEM DISK IP CREATED` and a trailing `pool:` line with used/total cpu, memory and disk. `--json` emits the full `vmspec.VM` records (an empty list, never `null`). |
+| `ls [-l] [--json]` | Lists VMs sorted by creation time. Columns `NAME IMAGE STATE UP URL` (UP is the time since the VM last booted, `-` when not running); `-l` adds `CPU MEM DISK IP CREATED STOPPED DIGEST` (STOPPED is the last stop reason, DIGEST the short hex of the pinned image) and a trailing `pool:` line with used/total cpu, memory and disk. `--json` emits the full `vmspec.VM` records (an empty list, never `null`). |
 | `rm <name>... [--json]` | `Manager.Remove` for each name in order; stops first if running; deletes the VM directory including the data disk. Stops at the first error. |
 | `start|stop|restart <name>...` | Lifecycle verbs with a shared 5 min context. Prints `vm <name> is <state>` after each. |
 | `cp <src> <dst> [--start]` | `Manager.Clone`; `--start` defaults to true and starts the clone afterwards. |
