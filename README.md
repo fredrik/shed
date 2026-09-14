@@ -56,7 +56,9 @@ The image is baked locally the first time you use it: a throwaway VM
 boots upstream `ubuntu:24.04`, runs the recipe, and its rootfs becomes
 the cached base image. Takes about a minute, rebakes whenever the recipe
 changes (bump `sheduntuVersion` to pick up upstream Ubuntu updates), and
-old bakes are pruned. Any other OCI image works via `--image`.
+old bakes are pruned once no VM uses them. A VM keeps booting the bake it
+was created on; a new bake only affects VMs created after it. Any other
+OCI image works via `--image`.
 
 ## How it works
 

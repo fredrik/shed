@@ -319,17 +319,20 @@ func (m *Manager) ensureSheduntu(ctx context.Context, progress io.Writer) (vmspe
 	defer cancel2()
 	run.Shutdown(shutdownCtx)
 
-	pruneOldSheduntu(filepath.Dir(imgPath), tag)
+	keep := m.referencedSheduntuTags()
+	keep[tag] = true
+	pruneOldSheduntu(filepath.Dir(imgPath), keep)
 	return info, imgPath, nil
 }
 
-// pruneOldSheduntu removes superseded sheduntu base images. Safe: VMs
-// always resolve the image to the current bake on start, so older ones
-// are orphaned the moment a new bake lands.
-func pruneOldSheduntu(dir, keepTag string) {
+// pruneOldSheduntu removes superseded sheduntu base images, except those
+// in keep: the fresh bake, plus every bake an existing VM is pinned to
+// (VMs boot the base they were created on; see basedisk.go). A pinned
+// image is released when its last VM is removed and the next bake prunes.
+func pruneOldSheduntu(dir string, keep map[string]bool) {
 	matches, _ := filepath.Glob(filepath.Join(dir, sheduntuName+"-*.img"))
 	for _, m := range matches {
-		if m == filepath.Join(dir, sheduntuName+"-"+keepTag+".img") {
+		if keep[sheduntuTagOf(m)] {
 			continue
 		}
 		os.Remove(m)

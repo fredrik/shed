@@ -273,12 +273,23 @@ func (m *Manager) Start(ctx context.Context, name string) error {
 	rec := *e.rec
 	m.mu.Unlock()
 
-	// Rebuild the base disk path from the image digest (cache may have
-	// been pruned; ensureImage is a fast no-op on cache hit).
-	_, baseDisk, err := m.ensureImage(ctx, rec.Spec.Image, io.Discard)
-	if err != nil {
-		m.startFailed(e, fmt.Errorf("image: %w", err))
-		return fmt.Errorf("image %s: %w", rec.Spec.Image, err)
+	// Boot the base the VM was created on (see basedisk.go). Only if that
+	// file is gone — cache wiped, or pruned by a daemon predating pinning —
+	// re-resolve the reference and move the record to what it yields now.
+	baseDisk, pinned := pinnedBaseDisk(m.cfg.CacheDir, rec.Image.Digest)
+	if !pinned {
+		info, path, err := m.ensureImage(ctx, rec.Spec.Image, io.Discard)
+		if err != nil {
+			m.startFailed(e, fmt.Errorf("image: %w", err))
+			return fmt.Errorf("image %s: %w", rec.Spec.Image, err)
+		}
+		if rec.Image.Digest != "" && rec.Image.Digest != info.Digest {
+			log.Printf("vm %s: base %s is gone from the cache; moving to %s", name, rec.Image.Digest, info.Digest)
+		}
+		baseDisk, rec.Image = path, info
+		m.mu.Lock()
+		e.rec.Image = info
+		m.mu.Unlock()
 	}
 
 	startCtx, cancel := context.WithTimeout(ctx, 60*time.Second)

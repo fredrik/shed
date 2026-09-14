@@ -15,13 +15,23 @@ import (
 	"github.com/fredrik/shed/internal/vm/vmspec"
 )
 
-type fakePrep struct{}
-
-func (fakePrep) EnsureImage(ctx context.Context, ref string) (vmspec.ImageInfo, string, error) {
-	return vmspec.ImageInfo{Digest: "sha256:fake", ExposedPorts: []int{80}}, "/dev/null", nil
+// fakePrep stands in for the OCI pipeline. digest/path are what the next
+// EnsureImage resolves to; tests move them to simulate an upstream tag
+// that has moved on since a VM was created.
+type fakePrep struct {
+	digest string
+	path   string
+	calls  int
 }
 
-func (fakePrep) EnsureDataDisk(path string, sizeGB int) error {
+func newFakePrep() *fakePrep { return &fakePrep{digest: "sha256:fake", path: "/dev/null"} }
+
+func (p *fakePrep) EnsureImage(ctx context.Context, ref string) (vmspec.ImageInfo, string, error) {
+	p.calls++
+	return vmspec.ImageInfo{Digest: p.digest, ExposedPorts: []int{80}}, p.path, nil
+}
+
+func (*fakePrep) EnsureDataDisk(path string, sizeGB int) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
 	}
@@ -37,10 +47,11 @@ func newTestManager(t *testing.T) (*Manager, *stubbackend.Backend) {
 	t.Cleanup(st.Close)
 	cfg := &config.Config{
 		DefaultImage: "test:latest", DefaultCPUs: 2, DefaultMemoryMB: 512, DefaultDiskGB: 5,
-		Pool: config.Pool{CPUs: 4, MemoryMB: 2048, DiskGB: 20},
+		Pool:     config.Pool{CPUs: 4, MemoryMB: 2048, DiskGB: 20},
+		CacheDir: t.TempDir(),
 	}
 	be := stubbackend.New()
-	mgr := NewManager(cfg, st, be, fakePrep{}, "/no/kernel", func() []string { return []string{"ssh-ed25519 AAAA test"} })
+	mgr := NewManager(cfg, st, be, newFakePrep(), "/no/kernel", func() []string { return []string{"ssh-ed25519 AAAA test"} })
 	if err := mgr.Recover(); err != nil {
 		t.Fatal(err)
 	}
@@ -168,7 +179,7 @@ func TestRecoverDemotesRunning(t *testing.T) {
 	}
 	defer st2.Close()
 	cfg := &config.Config{Pool: config.Pool{CPUs: 4, MemoryMB: 2048, DiskGB: 20}}
-	mgr := NewManager(cfg, st2, stubbackend.New(), fakePrep{}, "", func() []string { return nil })
+	mgr := NewManager(cfg, st2, stubbackend.New(), newFakePrep(), "", func() []string { return nil })
 	if err := mgr.Recover(); err != nil {
 		t.Fatal(err)
 	}

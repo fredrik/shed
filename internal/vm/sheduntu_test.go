@@ -37,11 +37,14 @@ func TestPruneOldSheduntu(t *testing.T) {
 	keepJSON := write("sheduntu-aaaaaaaaaaaa.img.json")
 	stale := write("sheduntu-bbbbbbbbbbbb.img")
 	staleJSON := write("sheduntu-bbbbbbbbbbbb.img.json")
+	// Referenced by a VM record; superseded, but must survive.
+	pinned := write("sheduntu-cccccccccccc.img")
+	pinnedJSON := write("sheduntu-cccccccccccc.img.json")
 	other := write("ubuntu-24.04.img")
 
-	pruneOldSheduntu(dir, "aaaaaaaaaaaa")
+	pruneOldSheduntu(dir, map[string]bool{"aaaaaaaaaaaa": true, "cccccccccccc": true})
 
-	for _, path := range []string{keep, keepJSON, other} {
+	for _, path := range []string{keep, keepJSON, pinned, pinnedJSON, other} {
 		if _, err := os.Stat(path); err != nil {
 			t.Errorf("%s should have survived: %v", filepath.Base(path), err)
 		}
