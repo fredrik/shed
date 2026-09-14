@@ -33,7 +33,7 @@ clones the whole machine in a couple of seconds, and
 `http://box.shed.localhost:8080` reaches whatever box is serving. There is
 no GUI and no YAML; the interface is ssh.
 
-The default image is sheduntu: Ubuntu 24.04 with the
+The default image is sheduntu: Ubuntu 26.04 with the
 usual tools installed (git, curl, vim, tmux, htop, ripgrep, jq), a `dev`
 user with passwordless sudo, plus mise and uv in /usr/local/bin, node 24
 via mise, and python 3.14 (uv-managed) as dev's default next to the apt
@@ -53,10 +53,12 @@ starship preset nerd-font-symbols -o ~/.config/starship.toml
 ```
 
 The image is baked locally the first time you use it: a throwaway VM
-boots upstream `ubuntu:24.04`, runs the recipe, and its rootfs becomes
+boots upstream `ubuntu:26.04`, runs the recipe, and its rootfs becomes
 the cached base image. Takes about a minute, rebakes whenever the recipe
 changes (bump `sheduntuVersion` to pick up upstream Ubuntu updates), and
-old bakes are pruned. Any other OCI image works via `--image`.
+old bakes are pruned once no VM uses them. A VM keeps booting the bake it
+was created on; a new bake only affects VMs created after it. Any other
+OCI image works via `--image`.
 
 ## How it works
 

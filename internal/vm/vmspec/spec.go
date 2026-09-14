@@ -32,8 +32,8 @@ type Spec struct {
 	Autostart bool      `json:"autostart,omitempty"`
 }
 
-// ImageInfo is what the OCI image resolved to at create time, kept so
-// starts don't re-pull.
+// ImageInfo is what the image resolved to at create time. Digest pins
+// the VM to that base disk: starts boot it rather than re-resolving.
 type ImageInfo struct {
 	Digest       string   `json:"digest"`
 	Entrypoint   []string `json:"entrypoint,omitempty"`

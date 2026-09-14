@@ -337,7 +337,7 @@ Every vm is a real Linux microVM (Virtualization.framework) booted from an
 OCI image in about a second. The disk persists; stopped vms cost nothing
 but disk. Your plan is a pool of cpu/memory/disk shared by all vms.
 
-The default image is sheduntu: Ubuntu 24.04 with common tools preinstalled,
+The default image is sheduntu: Ubuntu 26.04 with common tools preinstalled,
 baked locally on first use (any OCI image works via --image).
 
   ssh mybox@shed                     shell in as dev (passwordless sudo);
