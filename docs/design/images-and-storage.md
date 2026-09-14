@@ -54,12 +54,10 @@ kernel refuses to write to it even by accident.
 A mutex in `OCIPreparer` serialises builds; they take seconds and
 concurrency would only fight over the same file.
 
-`EnsureImage` runs on **every Start** as well as on Create, because the
-manager does not store the base disk path (see
-[vm-lifecycle.md](vm-lifecycle.md)). Step 1 happens before step 3, so
-starting a registry-image VM always contacts the registry, and a moved
-tag yields a different base disk on the next start. Only the sheduntu
-path (below) is offline after its first bake.
+`EnsureImage` runs on Create. Start does not call it while the VM's
+pinned base disk exists (see [vm-lifecycle.md](vm-lifecycle.md)); only
+a missing base disk sends Start back through this path, and step 1
+happens before step 3, so that fallback contacts the registry.
 
 ### Data disks
 
@@ -90,9 +88,9 @@ sequenceDiagram
     participant P as OCIPreparer
     participant B as Backend
     participant A as shedguest (bake VM)
-    M->>M: tag = sha256(version + NUL + script)[:12]
+    M->>M: tag = sha256(version + NUL + rendered script)[:12]
     M->>M: cache hit on base/sheduntu-tag.img + .json? return
-    M->>P: EnsureImage("ubuntu:24.04") -> base disk
+    M->>P: EnsureImage("ubuntu:26.04") -> base disk
     M->>P: EnsureDataDisk(tmp/data.img, 8 GB)
     M->>B: Start(name=sheduntu-bake, 2 cpu, 2048 MB, GuestConfig{BakeScript})
     B->>A: boot, config
@@ -103,16 +101,20 @@ sequenceDiagram
     A-->>M: tar of merged rootfs (skip list applied)
     M->>M: BuildBaseDisk(tar, base/sheduntu-tag.img), write .json sidecar
     M->>A: Shutdown (10 s), Kill
-    M->>M: prune other sheduntu-*.img
+    M->>M: prune sheduntu-*.img that no VM record references
 ```
 
 Details worth knowing:
 
-- **Cache key.** `SHA-256(sheduntuVersion + "\x00" + sheduntuScript)`,
-  first 12 hex characters. The key covers the recipe and a manually
-  bumped version string, **not** the upstream Ubuntu digest, so a baked
-  image resolves offline with no registry round trip on the create
-  path. Picking up upstream updates means bumping `sheduntuVersion`.
+- **Cache key.** `SHA-256(sheduntuVersion + "\x00" + renderedScript)`,
+  first 12 hex characters, where the rendered script is
+  `sheduntuScript` with the marker `@@XTERM_GHOSTTY_TERMINFO@@` replaced
+  by the embedded contents of `internal/vm/xterm-ghostty.ti`. Hashing
+  the rendered form means an edit to the embedded file rebakes too. The
+  key covers the recipe and a manually bumped version string, **not**
+  the upstream Ubuntu digest, so a baked image resolves offline with no
+  registry round trip on the create path. Picking up upstream updates
+  means bumping `sheduntuVersion`.
 - **Sidecar.** `base/sheduntu-<tag>.img.json` holds the `ImageInfo` the
   bake produced: digest `sheduntu:<tag>`, `Cmd` `/bin/bash`, a default
   `PATH`. A cache hit requires both files.
@@ -122,9 +124,10 @@ Details worth knowing:
   story. Its data disk lives in a temp directory that is removed
   afterwards. The overall budget is 15 min.
 - **The recipe** is the `sheduntuScript` constant in
-  `internal/vm/sheduntu.go`, run with `set -eux`. That file is the
-  source of truth (the cache tag hashes its exact bytes); what follows
-  is a complete inventory of what it does, in order.
+  `internal/vm/sheduntu.go` plus the embedded
+  `internal/vm/xterm-ghostty.ti`, run with `set -eux`. Those files are
+  the source of truth (the cache tag hashes their exact bytes); what
+  follows is a complete inventory of what the recipe does, in order.
   1. `dpkg` config `zz-fzf-examples` with
      `path-include=/usr/share/doc/fzf/examples/*`, so fzf's shell
      integration survives Ubuntu's doc-stripping.
@@ -134,14 +137,20 @@ Details worth knowing:
      dnsutils netcat-openbsd python3 zsh zsh-autosuggestions
      zsh-syntax-highlighting fzf bat fd-find zoxide tree`, then
      `apt-get clean`.
-  3. Symlinks `/usr/local/bin/bat → /usr/bin/batcat` and
+  3. `tic -x -o /usr/share/terminfo` of Ghostty's `xterm-ghostty`
+     terminfo (captured from Ghostty 1.3.1 with `infocmp -x`), spliced
+     in from the embedded file. Ghostty's ssh integration then finds
+     the entry on every VM and installs nothing; without it, a VM
+     recreated under a name Ghostty had cached would get
+     `TERM=xterm-ghostty` with no entry behind it.
+  4. Symlinks `/usr/local/bin/bat → /usr/bin/batcat` and
      `/usr/local/bin/fd → /usr/bin/fdfind`.
-  4. Installers, all into `/usr/local/bin`: mise (`https://mise.run`,
+  5. Installers, all into `/usr/local/bin`: mise (`https://mise.run`,
      `MISE_INSTALL_PATH`), uv (`https://astral.sh/uv/install.sh`,
      `UV_INSTALL_DIR`, no PATH modification), starship
      (`https://starship.rs/install.sh -y -b /usr/local/bin`).
-  5. Skel files under `/etc/skel`, inherited by the user created in
-     step 6: `.sudo_as_admin_successful` (suppresses Ubuntu's sudo
+  6. Skel files under `/etc/skel`, inherited by the user created in
+     step 7: `.sudo_as_admin_successful` (suppresses Ubuntu's sudo
      lecture); `.bashrc` appended with `eval "$(mise activate bash)"`;
      `.config/mise/config.toml` with `trusted_config_paths = ["~"]`
      and `node = "24"`; `.config/uv/uv.toml` with `python-preference =
@@ -156,15 +165,16 @@ Details worth knowing:
      `.config/tmux/tmux.conf` (tmux-256color with truecolor
      overrides, mouse on, 10 ms escape time, 100000 line history,
      1-based window and pane indices, renumbering).
-  6. `userdel -r ubuntu`; `useradd -m -u 1000 -s /usr/bin/zsh dev`;
+  7. `userdel -r ubuntu`; `useradd -m -u 1000 -s /usr/bin/zsh dev`;
      `usermod -aG sudo dev`; `/etc/sudoers.d/dev` containing `dev
      ALL=(ALL) NOPASSWD:ALL`, mode 0440.
-  7. As `dev` (with `su - dev -s /bin/bash`): `mise install` (node 24
+  8. As `dev` (with `su - dev -s /bin/bash`): `mise install` (node 24
      from the skel config), `uv python install --default 3.14` (falls
      back to a non-default install), and `zsh -ic exit` to build the
      completion dump.
-  8. `/etc/motd` written with ANSI colour and the literal placeholder
-     `<vmname>`, which the agent replaces at login.
+  9. `/etc/motd` written with ANSI colour, naming Ubuntu 26.04, with
+     the literal placeholder `<vmname>`, which the agent replaces at
+     login.
 
   Recipe version constant: `sheduntuVersion = "v1"`.
 - **Harvest.** The guest tars its merged root in parent-before-child
@@ -174,9 +184,11 @@ Details worth knowing:
   `/root/.ssh/authorized_keys`), sockets and fifos, and apt lists and
   caches. Mount-point directories are emitted first so they exist in
   the image.
-- **Prune.** After a successful bake, every other `sheduntu-*.img` and
-  sidecar in the base directory is deleted. Existing VMs are safe
-  because Start re-resolves the image to the current bake.
+- **Prune.** After a successful bake, every `sheduntu-*.img` and
+  sidecar in the base directory is deleted **except** the fresh bake
+  and every bake some VM record's `image.digest` still points at. VMs
+  keep booting the bake they were created on; a pinned bake is released
+  when its last VM is removed and the next bake prunes.
 
 The bake takes about a minute and prints progress to whoever triggered
 it (`ssh shed new` stdout or a brokered session's stderr).
@@ -291,8 +303,9 @@ version bump is the manual valve.
 - Image platform: `linux/arm64`. Auth: default docker keychain.
 - `ImageInfo.ExposedPorts`: TCP only, ascending.
 - sheduntu references: `sheduntu`, `sheduntu:latest`. Upstream base
-  `ubuntu:24.04`. Cache key: first 12 hex chars of
-  `SHA-256(version + "\x00" + script)`. Files
+  `ubuntu:26.04`. Cache key: first 12 hex chars of
+  `SHA-256(version + "\x00" + renderedScript)`, the script with the
+  embedded terminfo spliced in at `@@XTERM_GHOSTTY_TERMINFO@@`. Files
   `base/sheduntu-<tag>.img` + `.json`. Digest string `sheduntu:<tag>`.
 - Bake VM: name `sheduntu-bake`, 2 cpus, 2048 MB, 8 GB temp data disk,
   15 min budget, serial log `<cache>/sheduntu-bake.log`, rootfs served
@@ -305,8 +318,9 @@ version bump is the manual valve.
   member `opt/kata/share/kata-containers/vmlinux-6.18.15-186`, SHA-256
   `2fe4a58d2885d623bcb4d705900ac8c1d4f02371152da8126b3b00c8c47fc3a1`,
   cached at `<cache>/kernel/3.28.0/Image`, verified on every start.
-- Image resolution runs on Create and on every Start; registry images
-  fetch the manifest each time, sheduntu resolves offline once baked.
+- Image resolution runs on Create. Start boots the base disk pinned by
+  `image.digest` and re-resolves only if that file is missing.
+- Prune keeps the fresh bake plus every bake referenced by a VM record.
 - Initramfs: uncompressed newc cpio; entries `dev proc sys newroot
   lower data` (dirs), `dev/console` (c 5 1), `init` (agent); written
   to `<state>/initramfs.cpio` on every start.

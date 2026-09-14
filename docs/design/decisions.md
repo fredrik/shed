@@ -243,11 +243,12 @@ cannot boot machines; only ssh can.
 same, without depending on a registry-hosted custom image or on Docker
 to build one.
 
-**Decision.** A throwaway VM boots upstream `ubuntu:24.04` with a bake
+**Decision.** A throwaway VM boots upstream `ubuntu:26.04` with a bake
 script in its config, the agent runs the script and serves a tar of
 the merged root, and the host turns that into a cached base disk. The
-cache key is a hash of the recipe and a manual version string, not the
-upstream digest. Old bakes are pruned.
+cache key is a hash of the rendered recipe (including embedded files
+such as the Ghostty terminfo) and a manual version string, not the
+upstream digest. Old bakes are pruned once no VM references them.
 
 **Consequences.** First use costs about a minute; every later create
 resolves offline. Upstream Ubuntu updates require bumping
@@ -287,7 +288,7 @@ VM.
 with backoff, but not when the argv is a single bare shell, which is
 the CMD of every base image.
 
-**Consequences.** `nginx:latest` serves on boot; `ubuntu:24.04` does
+**Consequences.** `nginx:latest` serves on boot; `ubuntu:26.04` does
 not spawn a doomed non-interactive `bash` every second. Images whose
 service happens to be invoked as a bare shell would need an explicit
 entrypoint.
@@ -312,6 +313,28 @@ guest agent is always the one embedded in the running daemon. A few
 megabytes of extra memory per VM at boot, freed after switch_root is
 not reclaimed (the old initramfs is not unmounted).
 
+## D24. VMs are pinned to the base disk they were created on
+
+**Context.** The base disk path was originally re-derived on every
+start by resolving `spec.image` again. For a registry image that meant
+a manifest fetch per start, and a moved tag (or a new sheduntu bake)
+silently swapped the overlay's lower layer under an upper layer written
+against the old one.
+
+**Decision.** `image.digest` on the record names the base disk
+(`sha256:<hex>` → `base/<hex>.img`, `sheduntu:<tag>` →
+`base/sheduntu-<tag>.img`). Start boots that file while it exists and
+re-resolves the reference only if it is gone, updating the record and
+logging the move. Bake pruning keeps every bake a record still points
+at.
+
+**Consequences.** Starts are offline whenever the base is cached. A new
+bake or a moved tag affects only VMs created after it. The record's
+image metadata always matches the booted base. The cache can grow to
+hold one bake per generation of VMs still alive; removing the last VM
+on an old bake lets the next bake reclaim it. Wiping the cache moves
+every VM to the current resolution on its next start.
+
 ## Known gaps
 
 These are consequences of the decisions above and are not currently
@@ -335,13 +358,6 @@ implementation is free to fix without being "incompatible".
 
 ### Incidental, fixable without breaking the design
 
-- **Start re-resolves registry images online** (D6, D7). The base disk
-  path is not stored, and the OCI preparer fetches the manifest before
-  checking the cache. Starting a registry-image VM requires network,
-  and a moved tag boots a new base while the record's entrypoint, cmd,
-  env and exposed ports stay from create time. Storing the digest-keyed
-  base path, or checking the cache by the recorded digest first, would
-  fix both. sheduntu is unaffected.
 - **Client environment variables are not applied guest-side.** The
   gateway forwards `env` requests and the guest server accepts them,
   but the session handler builds the child environment from scratch

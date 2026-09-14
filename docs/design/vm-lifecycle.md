@@ -39,23 +39,24 @@ VM
   ip              string     last known guest IP, cleared when stopped
 ```
 
-`ImageInfo` is captured once at create time and never updated. The
-base disk path is not stored; **every Start re-resolves
-`spec.image`** to find it, because the cache may have been pruned. What
-that costs depends on the image:
+`ImageInfo` is captured at create time, and its `digest` **pins the VM
+to the base disk it was created on**. The base disk path is not stored;
+Start derives it from the digest (`sha256:<hex>` →
+`<cache>/base/<hex>.img`, `sheduntu:<tag>` →
+`<cache>/base/sheduntu-<tag>.img`) and boots that file for as long as it
+exists. Only when the file is gone (cache wiped, or pruned by a daemon
+that predates pinning) does Start fall back to re-resolving
+`spec.image` through the normal image path; it then logs the move and
+replaces the record's `image` block with what the reference yields now.
 
-- `sheduntu` resolves from the cached bake by recipe hash, offline.
-- Any registry image goes through the OCI preparer, which fetches the
-  manifest from the registry **before** checking for a cached base
-  disk. Starting such a VM therefore needs network access, and if the
-  tag has moved since create, a new base disk is built and booted
-  while the record keeps the entrypoint, cmd, env and exposed ports
-  from the original resolution.
-
-The comment on `ImageInfo` in `vmspec` says it is kept "so starts don't
-re-pull"; that is true of the metadata and layers (layer downloads are
-lazy and a cached base disk skips them) but not of the manifest fetch.
-This is listed as a known gap in [decisions.md](decisions.md).
+Consequences: starting a VM is offline whenever its base disk is
+cached, for registry images too; a moved tag or a new sheduntu bake
+never changes an existing VM's lower layer; and the record's entrypoint,
+cmd, env and exposed ports always describe the base actually booted.
+The reason for pinning is overlayfs: the data disk's upper layer was
+written against one specific lower layer, and swapping the base under
+it (apt-upgraded libraries in the upper shadowing binaries in a newer
+base that want a newer glibc, say) would break the VM.
 
 A representative record, as written by Go's `encoding/json` (fields
 tagged `omitempty` are absent when zero; `created` is RFC 3339 with
@@ -144,7 +145,7 @@ corrupt the record.
 
 **Create.** Fill defaults from config (image, cpus, memory, disk), validate the name and the spec (`Backend.Validate`: cpus ≥ 1, memory ≥ 128 MB, disk ≥ 1 GB). Under the lock: reject duplicate names, reserve disk quota, insert the entry as `creating`/busy. Outside the lock: resolve the image (pull or bake, with progress to the caller's writer), create the data disk. Under the lock: mark `stopped`, save. Any failure before save deletes the entry and directory. Unless `NoStart`, `Start` follows; a start failure after a successful create returns the record and an error prefixed `created, but start failed`.
 
-**Start.** Under the lock: must exist, not be busy, and be `stopped` or `error` (`running` returns nil, other states error). Check cpu and memory quota. Mark `starting`/busy. Outside the lock: re-resolve the base disk (fast cache hit), call `Backend.Start` with a 60 s context, passing the spec, both disk paths, kernel, serial log path (`vms/<name>/serial.log`) and the guest config (hostname = name, authorized keys from the `GuestKeys` callback, entrypoint/cmd/env/workdir from `ImageInfo`, preferred login user from config). On success: `running`, IP recorded, watcher started. On failure: `error` with the message, and the serial log path is included in the returned error.
+**Start.** Under the lock: must exist, not be busy, and be `stopped` or `error` (`running` returns nil, other states error). Check cpu and memory quota. Mark `starting`/busy. Outside the lock: locate the pinned base disk (re-resolving the image reference only if that file is missing), call `Backend.Start` with a 60 s context, passing the spec, both disk paths, kernel, serial log path (`vms/<name>/serial.log`) and the guest config (hostname = name, authorized keys from the `GuestKeys` callback, entrypoint/cmd/env/workdir from `ImageInfo`, preferred login user from config). On success: `running`, IP recorded, watcher started. On failure: `error` with the message, and the serial log path is included in the returned error.
 
 **Stop.** Must be `running` with a live handle and not busy. Mark `stopping`/busy, call `RunningVM.Shutdown` with a 20 s context (which itself falls back to `Kill`), wait for `Done`, settle to `stopped`/`"requested"`.
 
@@ -269,10 +270,12 @@ say so and boot on demand.
 - States: `creating stopped starting running stopping error`.
 - Start preconditions: state `stopped` or `error`, not busy, cpu and
   memory within pool. `running` → no-op success.
-- Start re-resolves `spec.image` for the base disk path: registry
-  images fetch the manifest (network required, tag drift possible);
-  `sheduntu` resolves offline. The record's `image` block is never
-  updated after create.
+- Start boots the base disk named by `image.digest` (`sha256:<hex>` →
+  `<cache>/base/<hex>.img`; `sheduntu:<tag>` →
+  `<cache>/base/sheduntu-<tag>.img`) when that file exists, with no
+  network. If it is missing, Start re-resolves `spec.image`, replaces
+  the record's `image` block, and logs the move. `image` is otherwise
+  never updated after create.
 - Record serialization: `encoding/json`, two-space indent, trailing
   newline; `created` RFC 3339 nano UTC; `omitempty` on `autostart`,
   `ip`, `last_stop_reason`, and all `image` fields except `digest`,
