@@ -35,6 +35,7 @@ VM
     public        bool
     emails        []string   parity only
   state           State      see below
+  started_at      time       when it last booted (UTC), cleared when stopped
   last_stop_reason string    why it last stopped (or the start error)
   ip              string     last known guest IP, cleared when stopped
 ```
@@ -88,8 +89,8 @@ nanoseconds in UTC):
 A sheduntu VM's `image` block has `digest` `"sheduntu:<tag>"`, `cmd`
 `["/bin/bash"]`, a single `PATH` entry in `env`, and no
 `exposed_ports`. `share` is always present as an object, empty when
-nothing is set. `autostart`, `ip` and `last_stop_reason` appear only
-when non-zero.
+nothing is set. `autostart`, `started_at`, `ip` and `last_stop_reason`
+appear only when non-zero.
 
 Names double as ssh usernames, guest hostnames and URL host labels,
 which is why the character set is so narrow. The name also seeds the
@@ -145,9 +146,9 @@ corrupt the record.
 
 **Create.** Fill defaults from config (image, cpus, memory, disk), validate the name and the spec (`Backend.Validate`: cpus ≥ 1, memory ≥ 128 MB, disk ≥ 1 GB). Under the lock: reject duplicate names, reserve disk quota, insert the entry as `creating`/busy. Outside the lock: resolve the image (pull or bake, with progress to the caller's writer), create the data disk. Under the lock: mark `stopped`, save. Any failure before save deletes the entry and directory. Unless `NoStart`, `Start` follows; a start failure after a successful create returns the record and an error prefixed `created, but start failed`.
 
-**Start.** Under the lock: must exist, not be busy, and be `stopped` or `error` (`running` returns nil, other states error). Check cpu and memory quota. Mark `starting`/busy. Outside the lock: locate the pinned base disk (re-resolving the image reference only if that file is missing), call `Backend.Start` with a 60 s context, passing the spec, both disk paths, kernel, serial log path (`vms/<name>/serial.log`) and the guest config (hostname = name, authorized keys from the `GuestKeys` callback, entrypoint/cmd/env/workdir from `ImageInfo`, preferred login user from config). On success: `running`, IP recorded, watcher started. On failure: `error` with the message, and the serial log path is included in the returned error.
+**Start.** Under the lock: must exist, not be busy, and be `stopped` or `error` (`running` returns nil, other states error). Check cpu and memory quota. Mark `starting`/busy. Outside the lock: locate the pinned base disk (re-resolving the image reference only if that file is missing), call `Backend.Start` with a 60 s context, passing the spec, both disk paths, kernel, serial log path (`vms/<name>/serial.log`) and the guest config (hostname = name, authorized keys from the `GuestKeys` callback, entrypoint/cmd/env/workdir from `ImageInfo`, preferred login user from config). On success: `running`, `started_at` recorded, IP recorded, watcher started. On failure: `error` with the message, and the serial log path is included in the returned error.
 
-**Stop.** Must be `running` with a live handle and not busy. Mark `stopping`/busy, call `RunningVM.Shutdown` with a 20 s context (which itself falls back to `Kill`), wait for `Done`, settle to `stopped`/`"requested"`.
+**Stop.** Must be `running` with a live handle and not busy. Mark `stopping`/busy, call `RunningVM.Shutdown` with a 20 s context (which itself falls back to `Kill`), wait for `Done`, settle to `stopped`/`"requested"`. `settle` also clears the IP and `started_at`.
 
 **Restart.** Stop if running, then Start.
 
@@ -278,12 +279,12 @@ say so and boot on demand.
   never updated after create.
 - Record serialization: `encoding/json`, two-space indent, trailing
   newline; `created` RFC 3339 nano UTC; `omitempty` on `autostart`,
-  `ip`, `last_stop_reason`, and all `image` fields except `digest`,
+  `started_at`, `ip`, `last_stop_reason`, and all `image` fields except `digest`,
   and all `share` fields; `share` itself always present.
 - Stop precondition: `running` with live handle, not busy.
 - Rename precondition: not `running`/`starting`, not busy.
 - Recover: any state other than `stopped`/`error` → `stopped`,
-  `last_stop_reason = "daemon restart"`, IP cleared.
+  `last_stop_reason = "daemon restart"`, IP cleared, `started_at` cleared.
 - Pool accounting: disk for all VMs; cpu and memory for
   `running`/`starting`/`stopping`.
 - Timeouts: backend Start 60 s; graceful Shutdown 20 s then Kill; Kill
