@@ -75,9 +75,10 @@ One daemon (`shedd`) runs three things:
   through Microsoft's pure-Go `tar2ext4` into a read-only ext4 base disk —
   the rootfs never touches the host filesystem, so no root is needed and
   ownership/setuid/device nodes survive. Each VM adds a sparse writable
-  ext4 data disk (`mke2fs`), joined by overlayfs at boot. The kernel is the
-  Kata Containers static arm64 build (the same one Apple's `container`
-  direct-boots), fetched once and cached.
+  ext4 data disk (`mke2fs`), joined by overlayfs at boot. The kernel is
+  shed's own build of Linux with the Kata Containers configuration (the
+  one Apple's `container` direct-boots), published as a release asset,
+  fetched once and cached. `kernel/README.md` has the recipe.
 - **HTTP front door** (127.0.0.1:8080). `http://<vm>.shed.localhost:8080`
   proxies to the VM — the smallest `EXPOSE`d port, or `share port`. VMs are
   private by default; `ssh shed share <vm>` prints a signed link,
@@ -106,7 +107,7 @@ If the daemon dies, records reconcile to `stopped` on restart.
 
 - Apple Silicon Mac, macOS 15+
 - Go 1.25+, Homebrew (`brew install e2fsprogs`)
-- ~600 MB one-time kernel download on first `shedd serve`
+- A 16 MB one-time kernel download on first `shedd serve`
 
 ## Setup
 

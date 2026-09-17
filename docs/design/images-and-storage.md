@@ -195,25 +195,28 @@ it (`ssh shed new` stdout or a brokered session's stderr).
 
 ## Kernel
 
-`kernel.Ensure(cacheDir)` returns `<cache>/kernel/3.28.0/Image`,
-downloading it on first use. The source is the Kata Containers 3.28.0
-release tarball for arm64 (zstd-compressed tar, about 600 MB); the
-member extracted is `opt/kata/share/kata-containers/vmlinux-6.18.15-186`
-(about 16 MB). The extracted file's SHA-256 must match the pinned
-value; a mismatch deletes the download and fails. The cached file is
-re-hashed on every daemon start, so a corrupted cache is caught.
+`kernel.Ensure(cacheDir)` returns `<cache>/kernel/<version>/Image`,
+downloading it on first use. The source is a release on this repository
+tagged `kernel-<version>`, whose only asset is the raw Image (about
+16 MB). Its SHA-256 must match the pinned value; a mismatch deletes the
+download and fails. The cached file is re-hashed on every daemon start,
+so a corrupted cache is caught. `SHED_KERNEL=<path>` bypasses all of
+this and boots that Image, unverified; a path that does not exist is an
+error.
 
 ```
-URL     https://github.com/kata-containers/kata-containers/releases/download/3.28.0/kata-static-3.28.0-arm64.tar.zst
-member  opt/kata/share/kata-containers/vmlinux-6.18.15-186
-sha256  2fe4a58d2885d623bcb4d705900ac8c1d4f02371152da8126b3b00c8c47fc3a1   (of the extracted Image)
+URL     https://github.com/fredrik/shed/releases/download/kernel-<version>/Image
+sha256  the imageSHA256 constant in internal/kernel
 ```
 
-This is the kernel Apple's own `container` stack direct-boots. It is
-monolithic (no modules) with virtio blk/net/console/vsock, ext4 and
-overlayfs built in, and it is an uncompressed `Image`, which
-Virtualization.framework's Linux boot loader requires on arm64. Distro
-kernels fail on both counts: compressed, and virtio as modules.
+The Image is built by the recipe in `kernel/` (see its README): upstream
+stable Linux with Kata Containers' patches and arm64 config fragments,
+which is the configuration Apple's own `container` stack direct-boots.
+It is monolithic (no modules) with virtio blk/net/console/vsock, ext4,
+overlayfs, virtiofs, erofs and 9p built in, and it is an uncompressed
+`Image`, which Virtualization.framework's Linux boot loader requires on
+arm64. Distro kernels fail on both counts: compressed, and virtio as
+modules.
 
 ## Initramfs
 
@@ -262,7 +265,7 @@ vms/<name>/
 Cache directory, `~/Library/Caches/shed/`:
 
 ```
-kernel/3.28.0/Image        verified guest kernel
+kernel/<version>/Image     verified guest kernel
 base/<sha256 hex>.img      base disk per OCI image digest
 base/sheduntu-<tag>.img    baked default image
 base/sheduntu-<tag>.img.json   its ImageInfo sidecar
@@ -313,11 +316,10 @@ version bump is the manual valve.
 - Bake skip list: `/proc /sys /dev /run /tmp /.shed /lost+found
   /etc/hostname /etc/resolv.conf /root/.ssh/authorized_keys
   /var/lib/apt/lists /var/cache/apt`, plus sockets and fifos.
-- Kernel: Kata 3.28.0 arm64 release tarball
-  (`.../releases/download/3.28.0/kata-static-3.28.0-arm64.tar.zst`),
-  member `opt/kata/share/kata-containers/vmlinux-6.18.15-186`, SHA-256
-  `2fe4a58d2885d623bcb4d705900ac8c1d4f02371152da8126b3b00c8c47fc3a1`,
-  cached at `<cache>/kernel/3.28.0/Image`, verified on every start.
+- Kernel: release asset `Image` on tag `kernel-<version>` of this
+  repository, SHA-256 pinned in `internal/kernel`, cached at
+  `<cache>/kernel/<version>/Image`, verified on every start.
+  `SHED_KERNEL` overrides it.
 - Image resolution runs on Create. Start boots the base disk pinned by
   `image.digest` and re-resolves only if that file is missing.
 - Prune keeps the fresh bake plus every bake referenced by a VM record.

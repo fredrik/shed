@@ -68,7 +68,7 @@ internal/
   backend/stubbackend/ fake backend for tests
   image/              OCI pull + flatten (go-containerregistry)
   diskfs/             tar2ext4 base disks, mke2fs data disks
-  kernel/             pinned Kata kernel download, verify, cache
+  kernel/             pinned kernel release download, verify, cache
   initramfs/          newc cpio builder embedding shedguest as /init
   sshgate/            gliderlabs/ssh server, username routing, broker
   control/            cobra command tree bound to an ssh session
@@ -156,6 +156,6 @@ files or processes.
 - Reserved ssh username: `shed`. Every other username is a VM name.
 - VMs run inside the daemon process and do not survive it.
 - Host reaches a guest TCP port only through `RunningVM.DialGuest`.
-- Guest kernel: Kata Containers static arm64 build, version 3.28.0,
-  member `vmlinux-6.18.15-186`, pinned by SHA-256.
+- Guest kernel: shed's own build (recipe in `kernel/`), fetched from a
+  `kernel-<version>` release of this repository, pinned by SHA-256.
 - Guest agent is pid 1; no systemd is executed.
