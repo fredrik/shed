@@ -16,16 +16,16 @@ obvious from the code.
 
 ## Branches and worktrees
 
-- Never branch or edit in the main checkout at `~/code/fredrik/shed`; it
-  stays on `main`. Several agent sessions run in parallel, each in its
-  own worktree, and Fredrik uses the main checkout himself.
+- Never edit in the main checkout at `~/code/fredrik/shed`, and never
+  switch its branch; it stays on `main`. Several agent sessions run in
+  parallel, each in its own worktree, and Fredrik uses the main checkout
+  himself.
 - Do all work on a feature branch in a worktree under
   `.claude/worktrees/<branch>` (gitignored). Create it before touching
   any file; build and test inside it.
 - Base the branch on `origin/main`, not the local `main` ref, which may
-  carry commits that are not meant to land. Check
-  `git log origin/main..main` if in doubt.
-- Commit in logical chunks as you go. Ask before pushing.
+  be behind origin/main or carry other commits.
+- Commit in logical chunks as you go.
 
 ## Testing in sandboxed sessions
 
