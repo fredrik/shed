@@ -26,7 +26,7 @@ const (
 	Version = "6.18.15-shed"
 	url     = "https://github.com/fredrik/shed/releases/download/kernel-" + Version + "/Image"
 	// SHA-256 of the Image asset, as printed by `make kernel`.
-	imageSHA256 = "deef1464701523961ed7c53f125ad4817f2aa99a4c82262b362472835ed0fb0e"
+	imageSHA256 = "375e2eb2e7468c946be1dcfb5e7e1707aba69ab10bc431a13648ddb41a34f415"
 )
 
 // Ensure returns the path to the verified kernel Image, downloading it on
