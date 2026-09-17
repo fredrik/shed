@@ -20,6 +20,10 @@ OUT=${OUT:-$HOME/kernel-out}
 SRC=${SRC:-$HOME/kernel-src}
 JOBS=${JOBS:-$(nproc)}
 export ARCH=arm64
+# With the patches committed, HEAD is no longer the upstream tag, and
+# scripts/setlocalversion marks that with a trailing "+" unless
+# LOCALVERSION is set in the environment. Empty keeps CONFIG_LOCALVERSION.
+export LOCALVERSION=
 
 step() { printf '\n==> %s\n' "$*"; }
 
