@@ -69,6 +69,7 @@ and no trailing whitespace; `printJSON` emits two-space-indented JSON.
 | `start|stop|restart <name>...` | Lifecycle verbs with a shared 5 min context. Prints `vm <name> is <state>` after each. |
 | `cp <src> <dst> [--start]` | `Manager.Clone`; `--start` defaults to true and starts the clone afterwards. |
 | `rename <old> <new>` | `Manager.Rename`; source must be stopped. |
+| `resize <vm> [--cpu N] [--memory MB]` | `Manager.Resize`; VM must be stopped. An omitted flag keeps the current value; at least one is required. Disk is not resizable. Prints `vm <name>: N cpus, M MB memory`. |
 | `share <vm>` | Prints the tokened URL that grants a browser access to a private VM. |
 | `share set-public|set-private <vm>` | Flips `Share.Public`. |
 | `share port <vm> <port>` | Sets the forwarded port (1..65535). |
@@ -93,8 +94,8 @@ Output shapes worth knowing when scripting:
 - `ls --json` is a JSON array of records, `[]` when empty.
 - `rm --json` is `{"removed": ["a", "b"]}` after all removals succeed;
   a failure part-way returns the error and no JSON.
-- `start|stop|restart`, `cp`, `rename` have no `--json`; they print
-  `vm <name> is <state>` lines.
+- `start|stop|restart`, `cp`, `rename`, `resize` have no `--json`; they
+  print `vm <name> ...` lines.
 - `share <vm>` and `browser <vm>` print a bare URL and nothing else.
 
 ## Design notes

@@ -127,6 +127,7 @@ ssh shed start|stop|restart <vm>...
 ssh shed rm <vm>...
 ssh shed cp <src> <dst>          # instant clone (APFS copy-on-write)
 ssh shed rename <old> <new>
+ssh shed resize <vm> [--cpu N] [--memory MB]   # vm must be stopped
 ssh shed share <vm>              # signed URL for a private vm
 ssh shed share set-public|set-private <vm>
 ssh shed share port <vm> <port>
