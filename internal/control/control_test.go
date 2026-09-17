@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	gossh "golang.org/x/crypto/ssh"
 
@@ -111,6 +112,65 @@ func TestNewLsRmFlow(t *testing.T) {
 	_, out, _ = run(t, deps, "ls --json")
 	if strings.TrimSpace(out) != "[]" {
 		t.Fatalf("ls after rm: %s", out)
+	}
+}
+
+func TestLsBootTimeAndMetadata(t *testing.T) {
+	deps := newDeps(t)
+
+	run(t, deps, "new box")
+
+	code, out, errOut := run(t, deps, "ls")
+	if code != 0 {
+		t.Fatalf("ls: %s / %s", out, errOut)
+	}
+	if !strings.Contains(out, "UP") {
+		t.Fatalf("ls missing UP column:\n%s", out)
+	}
+	var recs []vmspec.VM
+	code, out, _ = run(t, deps, "ls --json")
+	if code != 0 || json.Unmarshal([]byte(out), &recs) != nil || len(recs) != 1 {
+		t.Fatalf("ls --json: code=%d out=%s", code, out)
+	}
+	if recs[0].StartedAt.IsZero() {
+		t.Fatalf("running vm has no started_at: %+v", recs[0])
+	}
+
+	code, _, errOut = run(t, deps, "stop box")
+	if code != 0 {
+		t.Fatalf("stop: %s", errOut)
+	}
+
+	code, out, _ = run(t, deps, "ls -l")
+	if code != 0 {
+		t.Fatalf("ls -l: %s", out)
+	}
+	for _, want := range []string{"STOPPED", "DIGEST", "  requested"} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("ls -l missing %q:\n%s", want, out)
+		}
+	}
+	code, out, _ = run(t, deps, "ls --json")
+	if code != 0 || json.Unmarshal([]byte(out), &recs) != nil || len(recs) != 1 {
+		t.Fatalf("ls --json after stop: code=%d out=%s", code, out)
+	}
+	if !recs[0].StartedAt.IsZero() {
+		t.Fatalf("stopped vm kept started_at: %+v", recs[0])
+	}
+}
+
+func TestDurationHuman(t *testing.T) {
+	cases := map[time.Duration]string{
+		0:                            "0s",
+		42 * time.Second:             "42s",
+		time.Minute + 20*time.Second: "1m",
+		2*time.Hour + 5*time.Minute:  "2h5m",
+		3*24*time.Hour + 4*time.Hour: "3d4h",
+	}
+	for in, want := range cases {
+		if got := durationHuman(in); got != want {
+			t.Errorf("durationHuman(%v) = %q, want %q", in, got, want)
+		}
 	}
 }
 

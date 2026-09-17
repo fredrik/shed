@@ -116,13 +116,13 @@ func cmdLs(deps Deps) *cobra.Command {
 				fmt.Fprintln(cmd.OutOrStdout(), "no vms yet — create one: ssh shed new")
 				return nil
 			}
-			headers := []string{"NAME", "IMAGE", "STATE", "URL"}
+			headers := []string{"NAME", "IMAGE", "STATE", "UP", "URL"}
 			if long {
-				headers = append(headers, "CPU", "MEM", "DISK", "IP", "CREATED")
+				headers = append(headers, "CPU", "MEM", "DISK", "IP", "CREATED", "STOPPED", "DIGEST")
 			}
 			var rows [][]string
 			for _, rec := range vms {
-				row := []string{rec.Spec.Name, rec.Spec.Image, string(rec.State), deps.Gate.URL(rec.Spec.Name)}
+				row := []string{rec.Spec.Name, rec.Spec.Image, string(rec.State), upString(rec), deps.Gate.URL(rec.Spec.Name)}
 				if long {
 					row = append(row,
 						fmt.Sprint(rec.Spec.CPUs),
@@ -130,6 +130,8 @@ func cmdLs(deps Deps) *cobra.Command {
 						fmt.Sprintf("%dGB", rec.Spec.DiskGB),
 						orDefault(rec.IP, "-"),
 						rec.Spec.Created.Local().Format("2006-01-02 15:04"),
+						orDefault(rec.LastStopReason, "-"),
+						shortDigest(rec.Image.Digest),
 					)
 				}
 				rows = append(rows, row)
@@ -395,6 +397,44 @@ func orDefault(s, def string) string {
 		return def
 	}
 	return s
+}
+
+// upString renders how long a VM has been running (since it last booted),
+// or "-" when it is not.
+func upString(rec vmspec.VM) string {
+	if rec.StartedAt.IsZero() {
+		return "-"
+	}
+	return durationHuman(time.Since(rec.StartedAt))
+}
+
+// durationHuman renders a duration compactly: 42s, 5m, 2h5m, 3d4h.
+func durationHuman(d time.Duration) string {
+	if d < 0 {
+		d = 0
+	}
+	switch {
+	case d < time.Minute:
+		return fmt.Sprintf("%ds", int(d.Seconds()))
+	case d < time.Hour:
+		return fmt.Sprintf("%dm", int(d.Minutes()))
+	case d < 24*time.Hour:
+		return fmt.Sprintf("%dh%dm", int(d.Hours()), int(d.Minutes())%60)
+	default:
+		return fmt.Sprintf("%dd%dh", int(d.Hours())/24, int(d.Hours())%24)
+	}
+}
+
+// shortDigest renders an image digest as its short hex form
+// ("sha256:9a1f...e3" -> "9a1f...e3" truncated to 12 chars).
+func shortDigest(digest string) string {
+	if i := strings.IndexByte(digest, ':'); i >= 0 && i+1 < len(digest) {
+		digest = digest[i+1:]
+	}
+	if len(digest) > 12 {
+		return digest[:12]
+	}
+	return orDefault(digest, "-")
 }
 
 func appendLine(path, line string) error {
