@@ -258,7 +258,7 @@ su - dev -s /bin/bash -c 'zsh -ic exit' || true
 # printf %b for the escapes: the agent writes this file verbatim, and only
 # to pty sessions, so the colour is safe.
 printf '%b' '
-  \033[1;36msheduntu\033[0m \033[2m-- Ubuntu 26.04, shed build\033[0m
+  \033[1;36msheduntu\033[0m \033[2m-- Ubuntu 26.04, shed build, Linux <kernel>\033[0m
 
   This microVM is yours: persistent disk, apt works, sudo is free.
   Web port proxied at  \033[4;34mhttp://<vmname>.shed.localhost:8080\033[0m
