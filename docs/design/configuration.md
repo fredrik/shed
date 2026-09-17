@@ -16,7 +16,7 @@ overlays `<state>/config.toml` if it exists. Unknown keys are ignored.
 | `default_image` | `sheduntu` | image for `new` without `--image` and for create-on-connect |
 | `default_user` | `dev` | preferred ssh login user inside VMs, when the image has it |
 | `default_cpus` | `2` | vCPUs for `new` without `--cpu` |
-| `default_memory_mb` | `1024` | memory for `new` without `--memory` |
+| `default_memory_mb` | `4096` | memory for `new` without `--memory` |
 | `default_disk_gb` | `10` | data disk size for `new` without `--disk` |
 | `[pool] cpus` | `max(NumCPU - 2, 2)` | total vCPUs across running VMs |
 | `[pool] memory_mb` | half of `hw.memsize` (8192 if unreadable) | total memory across running VMs |

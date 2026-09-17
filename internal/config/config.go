@@ -58,7 +58,7 @@ func Load() (*Config, error) {
 		DefaultImage:    "sheduntu",
 		DefaultUser:     "dev",
 		DefaultCPUs:     2,
-		DefaultMemoryMB: 1024,
+		DefaultMemoryMB: 4096,
 		DefaultDiskGB:   10,
 		Pool: Pool{
 			CPUs:     max(runtime.NumCPU()-2, 2),
