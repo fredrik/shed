@@ -36,9 +36,8 @@ no GUI and no YAML; the interface is ssh.
 The default image is sheduntu: Ubuntu 26.04 with the
 usual tools installed (git, curl, vim, tmux, htop, ripgrep, jq), a `dev`
 user with passwordless sudo, plus mise and uv in /usr/local/bin, node 24
-via mise, python 3.14 (uv-managed) as dev's default next to the apt
-`python3`, and [Claude Code](https://claude.com/claude-code) installed
-for dev (`claude` logs you in on first run).
+via mise, and python 3.14 (uv-managed) as dev's default next to the apt
+`python3`.
 
 You land in zsh with a [starship](https://starship.rs) prompt, history
 suggestions and syntax highlighting as you type, ctrl-r/ctrl-t fuzzy
