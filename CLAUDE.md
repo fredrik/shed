@@ -14,6 +14,19 @@ obvious from the code.
   internal/initramfs embeds it (`go test ./...` alone fails on a clean tree).
 - `bin/shedd serve` — foreground daemon (ssh gateway :2222, http :8080).
 
+## Branches and worktrees
+
+- Never branch or edit in the main checkout at `~/code/fredrik/shed`; it
+  stays on `main`. Several agent sessions run in parallel, each in its
+  own worktree, and Fredrik uses the main checkout himself.
+- Do all work on a feature branch in a worktree under
+  `.claude/worktrees/<branch>` (gitignored). Create it before touching
+  any file; build and test inside it.
+- Base the branch on `origin/main`, not the local `main` ref, which may
+  carry commits that are not meant to land. Check
+  `git log origin/main..main` if in doubt.
+- Commit in logical chunks as you go. Ask before pushing.
+
 ## Testing in sandboxed sessions
 
 - Control commands need no ssh: `bin/shed ls|new|rm|...` talks to the
