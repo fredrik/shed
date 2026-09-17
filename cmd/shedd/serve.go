@@ -62,7 +62,7 @@ func serve() error {
 		log.Printf("warning: no authorized keys (add one: ssh-keygen, then shedd install)")
 	}
 
-	log.Printf("ensuring guest kernel (kata %s)...", kernel.Version)
+	log.Printf("ensuring guest kernel (%s)...", kernel.Version)
 	kernelPath, err := kernel.Ensure(cfg.CacheDir)
 	if err != nil {
 		return fmt.Errorf("kernel: %w", err)
