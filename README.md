@@ -133,6 +133,7 @@ ssh shed share set-public|set-private <vm>
 ssh shed share port <vm> <port>
 ssh shed ssh-key ls|add          # add - reads the key from stdin
 ssh shed whoami | doc | browser <vm>
+ssh shed version [--json]        # daemon version
 ```
 
 Locally, `bin/shed` runs the same commands without ssh: it talks to the
@@ -155,6 +156,14 @@ ssh -L 8080:localhost:80 web@shed
 make test           # unit tests (no VMs, no signing needed)
 make build          # rebuild + codesign
 ```
+
+Versions are git tags (`v0.1.0`, semver, `v0.x` while things still move).
+`make build` bakes `git describe --tags --dirty` into both binaries, so a
+dev build reports something like `v0.1.0-3-g19ad079-dirty`, or `dev` plus
+the commit before the first tag. `bin/shed version` prints the client and
+daemon versions and warns when they differ, which is what a stale daemon
+looks like after a rebuild. `bin/shedd --version` works too. To release:
+`git tag v0.1.0 && git push origin v0.1.0`.
 
 State lives in `~/.local/share/shed/` (VM records, disks, keys), caches
 in `~/Library/Caches/shed/` (kernel, base disks by image digest). Serial

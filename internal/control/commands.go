@@ -13,6 +13,7 @@ import (
 	gossh "golang.org/x/crypto/ssh"
 
 	"github.com/fredrik/shed/internal/keys"
+	"github.com/fredrik/shed/internal/version"
 	"github.com/fredrik/shed/internal/vm"
 	"github.com/fredrik/shed/internal/vm/vmspec"
 )
@@ -35,6 +36,7 @@ func newRoot(deps Deps) *cobra.Command {
 		cmdStop(deps),
 		cmdRestart(deps),
 		cmdWhoami(deps),
+		cmdVersion(),
 		cmdSSHKey(deps),
 		cmdBrowser(deps),
 		cmdDoc(deps),
@@ -259,6 +261,25 @@ func cmdWhoami(deps Deps) *cobra.Command {
 			return nil
 		},
 	}
+}
+
+func cmdVersion() *cobra.Command {
+	var asJSON bool
+	c := &cobra.Command{
+		Use:   "version",
+		Short: "Show the daemon's version",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			info := version.Current()
+			if asJSON {
+				return printJSON(cmd.OutOrStdout(), info)
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "shedd %s\n", info)
+			return nil
+		},
+	}
+	c.Flags().BoolVar(&asJSON, "json", false, "JSON output")
+	return c
 }
 
 func cmdSSHKey(deps Deps) *cobra.Command {
