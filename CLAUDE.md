@@ -45,10 +45,14 @@ obvious from the code.
 
 ## Platform facts (verified — do not re-derive)
 
-- Guest kernel: Kata static arm64 `vmlinux-6.18.15-186` (kata 3.28.0),
-  cached at `~/Library/Caches/shed/kernel/3.28.0/Image`; sha pinned in
-  internal/kernel. virtio blk/net/console/vsock, ext4, overlayfs, and
-  virtiofs are built in; erofs and modules are not.
+- Guest kernel: shed's own build (kernel/ has the recipe; Linux 6.18.15
+  with Kata 3.28.0's fragments and patches), published as a release
+  asset on the kernel-<version> tag and cached at
+  `~/Library/Caches/shed/kernel/<version>/Image`; sha pinned in
+  internal/kernel. virtio blk/net/console/vsock, ext4, overlayfs,
+  virtiofs, erofs and 9p are built in; modules are not. `SHED_KERNEL`
+  points shedd at any other Image; scripts/kernel-daemon.sh runs a
+  throwaway daemon on it beside the live one.
 - macOS 15 Local Network privacy (TCC) blocks host→guest TCP on bridge100
   in this environment ("no route to host"). The vsock fallback in
   vzbackend.DialGuest handles it — do not debug it as a network failure.

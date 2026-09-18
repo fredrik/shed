@@ -258,11 +258,10 @@ su - dev -s /bin/bash -c 'zsh -ic exit' || true
 # printf %b for the escapes: the agent writes this file verbatim, and only
 # to pty sessions, so the colour is safe.
 printf '%b' '
-  \033[1;36msheduntu\033[0m \033[2m-- Ubuntu 26.04, shed build\033[0m
+  \033[1;36msheduntu\033[0m \033[2m-- Ubuntu 26.04 (shed build), Linux <kernel>\033[0m
 
-  This microVM is yours: persistent disk, apt works, sudo is free.
-  Web port proxied at  \033[4;34mhttp://<vmname>.shed.localhost:8080\033[0m
-  Fleet from the host: \033[1mssh shed help\033[0m
+  This microVM is yours: persistent disk, apt works.
+  Read more about sheduntu at https://github.com/fredrik/shed
 
 ' > /etc/motd
 `
@@ -305,7 +304,7 @@ func (m *Manager) ensureSheduntu(ctx context.Context, progress io.Writer) (vmspe
 		return vmspec.ImageInfo{}, "", fmt.Errorf("sheduntu base %s: %w", sheduntuBase, err)
 	}
 
-	fmt.Fprintf(progress, "baking the sheduntu image (first time only, a few minutes)...\n")
+	fmt.Fprintf(progress, "creating the sheduntu base image, please hold (first time only)...\n")
 
 	bakeDir, err := os.MkdirTemp("", "shed-bake-*")
 	if err != nil {

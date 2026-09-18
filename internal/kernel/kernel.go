@@ -1,11 +1,15 @@
-// Package kernel fetches and caches the pinned guest kernel: the Kata
-// Containers static arm64 build — the same kernel Apple's `container`
-// stack direct-boots with Virtualization.framework. Monolithic, with
-// virtio blk/net/console/vsock, ext4, and overlayfs built in.
+// Package kernel fetches and caches shed's guest kernel: a monolithic
+// arm64 Linux built from the recipe in the kernel/ directory of this
+// repository and published as a release asset. It is the Kata Containers
+// kernel configuration rebuilt from source — virtio blk/net/console/vsock,
+// ext4, overlayfs, virtiofs, erofs and 9p built in, no modules — as an
+// uncompressed Image, which Virtualization.framework's Linux boot loader
+// requires on arm64.
+//
+// Set SHED_KERNEL to boot an Image built elsewhere instead — see Ensure.
 package kernel
 
 import (
-	"archive/tar"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
@@ -13,25 +17,40 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"strings"
-
-	"github.com/klauspost/compress/zstd"
 )
 
 const (
-	Version = "3.28.0"
-	url     = "https://github.com/kata-containers/kata-containers/releases/download/3.28.0/kata-static-3.28.0-arm64.tar.zst"
-	// Member inside the release tarball (Apple's containerization pin).
-	memberPath = "opt/kata/share/kata-containers/vmlinux-6.18.15-186"
-	// SHA-256 of the extracted kernel Image.
-	imageSHA256 = "2fe4a58d2885d623bcb4d705900ac8c1d4f02371152da8126b3b00c8c47fc3a1"
+	// Version names the release tag (kernel-<Version>) the Image is
+	// fetched from. A recipe change without an upstream bump still needs
+	// a new tag; pick a new suffix rather than moving this one.
+	Version = "6.18.15-shed"
+	url     = "https://github.com/fredrik/shed/releases/download/kernel-" + Version + "/Image"
+	// SHA-256 of the Image asset, as printed by `make kernel`.
+	imageSHA256 = "375e2eb2e7468c946be1dcfb5e7e1707aba69ab10bc431a13648ddb41a34f415"
 )
 
-// Ensure returns the path to the verified kernel Image, downloading and
-// extracting it on first use (~600 MB download, ~16 MB kept).
+// Ensure returns the path to the verified kernel Image, downloading it on
+// first use (about 16 MB) and re-hashing the cached copy on every call.
+//
+// SHED_KERNEL overrides all of that with a path to an Image of your own —
+// one you just built with `make kernel`, say. It is taken on trust: the
+// pin only describes the published asset, and a fresh build has no hash
+// to check against. A SHED_KERNEL that does not exist is an error rather
+// than a fallback, so a typo cannot masquerade as a kernel that booted.
 func Ensure(cacheDir string) (string, error) {
-	dest := filepath.Join(cacheDir, "kernel", Version, "Image")
-	if ok, _ := verify(dest); ok {
+	if path := os.Getenv("SHED_KERNEL"); path != "" {
+		if _, err := os.Stat(path); err != nil {
+			return "", fmt.Errorf("SHED_KERNEL: %w", err)
+		}
+		return path, nil
+	}
+	return ensure(filepath.Join(cacheDir, "kernel", Version, "Image"), url, imageSHA256)
+}
+
+// ensure is Ensure with the pin made explicit, so tests can point it at a
+// server of their own.
+func ensure(dest, url, sha string) (string, error) {
+	if ok, _ := verify(dest, sha); ok {
 		return dest, nil
 	}
 	if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
@@ -44,53 +63,33 @@ func Ensure(cacheDir string) (string, error) {
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("download kernel: %s", resp.Status)
+		return "", fmt.Errorf("download kernel: %s: %s", url, resp.Status)
 	}
 
-	zr, err := zstd.NewReader(resp.Body)
+	tmp, err := os.CreateTemp(filepath.Dir(dest), ".kernel-*")
 	if err != nil {
 		return "", err
 	}
-	defer zr.Close()
-
-	tr := tar.NewReader(zr)
-	for {
-		hdr, err := tr.Next()
-		if err == io.EOF {
-			return "", fmt.Errorf("kernel member %s not found in release tarball", memberPath)
-		}
-		if err != nil {
-			return "", err
-		}
-		if strings.TrimPrefix(hdr.Name, "./") != memberPath || hdr.Typeflag != tar.TypeReg {
-			continue
-		}
-		tmp, err := os.CreateTemp(filepath.Dir(dest), ".kernel-*")
-		if err != nil {
-			return "", err
-		}
-		if _, err := io.Copy(tmp, tr); err != nil {
-			tmp.Close()
-			os.Remove(tmp.Name())
-			return "", err
-		}
-		if err := tmp.Close(); err != nil {
-			os.Remove(tmp.Name())
-			return "", err
-		}
-		if ok, sum := verify(tmp.Name()); !ok {
-			os.Remove(tmp.Name())
-			return "", fmt.Errorf("kernel checksum mismatch: got %s want %s", sum, imageSHA256)
-		}
-		if err := os.Rename(tmp.Name(), dest); err != nil {
-			os.Remove(tmp.Name())
-			return "", err
-		}
-		return dest, nil
+	defer os.Remove(tmp.Name()) // a no-op once renamed into place
+	if _, err := io.Copy(tmp, resp.Body); err != nil {
+		tmp.Close()
+		return "", err
 	}
+	if err := tmp.Close(); err != nil {
+		return "", err
+	}
+	if ok, sum := verify(tmp.Name(), sha); !ok {
+		return "", fmt.Errorf("kernel checksum mismatch: got %s want %s", sum, sha)
+	}
+	if err := os.Rename(tmp.Name(), dest); err != nil {
+		return "", err
+	}
+	return dest, nil
 }
 
-func verify(path string) (bool, string) {
+// verify reports whether the file at path hashes to want, and the hash it
+// actually has (empty if the file could not be read).
+func verify(path, want string) (bool, string) {
 	f, err := os.Open(path)
 	if err != nil {
 		return false, ""
@@ -101,5 +100,5 @@ func verify(path string) (bool, string) {
 		return false, ""
 	}
 	sum := hex.EncodeToString(h.Sum(nil))
-	return sum == imageSHA256, sum
+	return sum == want, sum
 }

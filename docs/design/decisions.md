@@ -119,21 +119,31 @@ explicitly) with lazy inode table and journal init.
 checks it. Everything else is pure Go. Offline disk growth
 (`resize2fs`) would use the same package but is not implemented.
 
-## D9. Kata Containers' static kernel, pinned by hash
+## D9. Our own kernel build, from Kata's recipe, published as a release asset
 
 **Context.** VZ's Linux boot loader on arm64 needs an uncompressed
 `Image`. Distro kernels are compressed and have virtio as modules, so
 they cannot mount a virtio root from an initramfs without a module
-loader.
+loader. shed first downloaded Kata Containers' static kernel (the one
+Apple's `container` uses): a 600 MB tarball for one 16 MB member, and
+a configuration we could not change.
 
-**Decision.** Download the Kata 3.28.0 arm64 release tarball once,
-extract one member (`vmlinux-6.18.15-186`, the same kernel Apple's
-`container` uses), verify its SHA-256, cache it. Monolithic: virtio
-blk/net/console/vsock, ext4, overlayfs built in; no modules, no erofs.
+**Decision.** Build the kernel ourselves, inside a shed VM, from the
+recipe in `kernel/`: upstream stable Linux with Kata's patches and
+Kata's arm64 config fragments merged exactly as Kata's build script
+does, plus `CONFIG_LOCALVERSION=-shed`. Publish the Image as the sole
+asset of a `kernel-<version>` release on this repository; `internal/
+kernel` downloads it and pins its SHA-256. `SHED_KERNEL` overrides the
+pin with a local Image so a build can be boot-tested before it is
+published. Monolithic: virtio blk/net/console/vsock, ext4, overlayfs,
+virtiofs, erofs and 9p built in; no modules.
 
-**Consequences.** ~600 MB one-time download for a 16 MB file. Kernel
-changes are a code change (bump constants). Guests cannot load kernel
-modules.
+**Consequences.** A 16 MB one-time download. Kernel changes are a
+recipe change plus a release plus a two-constant bump; publishing is a
+manual step (`kernel/README.md`). Builds are config-equivalent to the
+release rather than byte-identical (different compiler, embedded
+timestamp). Guests still cannot load kernel modules. Kata remains the
+known-good base we track, not a dependency at runtime.
 
 ## D10. A Go agent as pid 1; no systemd
 

@@ -1,0 +1,8 @@
+# Pins for the guest kernel. Sourced by build.sh; keep it shell-safe.
+#
+# LINUX is a tag in the stable tree. KATA is the Kata Containers release
+# whose config fragments and patches for this kernel series we borrow.
+# Bump both together when following a new Kata release; bump LINUX alone
+# for a stable point release, if the KATA fragments still merge cleanly.
+LINUX=v6.18.15
+KATA=3.28.0
