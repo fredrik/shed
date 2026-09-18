@@ -41,6 +41,7 @@ func newRoot(deps Deps) *cobra.Command {
 		cmdShare(deps),
 		cmdCp(deps),
 		cmdRename(deps),
+		cmdResize(deps),
 		stub("shelley", "shelley — exe.dev's web agent; not part of the local clone (try: ssh <vm>@shed, then run claude)"),
 	)
 	return root
@@ -246,6 +247,26 @@ func cmdRename(deps Deps) *cobra.Command {
 			return nil
 		},
 	}
+}
+
+func cmdResize(deps Deps) *cobra.Command {
+	var cpus, memoryMB int
+	c := &cobra.Command{
+		Use:   "resize <vm>",
+		Short: "Change a vm's cpu and memory (must be stopped)",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := deps.Mgr.Resize(cmd.Context(), args[0], cpus, memoryMB); err != nil {
+				return err
+			}
+			rec, _ := deps.Mgr.Get(args[0])
+			fmt.Fprintf(cmd.OutOrStdout(), "vm %s: %d cpus, %d MB memory\n", args[0], rec.Spec.CPUs, rec.Spec.MemoryMB)
+			return nil
+		},
+	}
+	c.Flags().IntVar(&cpus, "cpu", 0, "vCPUs (0 keeps the current value)")
+	c.Flags().IntVar(&memoryMB, "memory", 0, "memory in MB (0 keeps the current value)")
+	return c
 }
 
 func cmdWhoami(deps Deps) *cobra.Command {

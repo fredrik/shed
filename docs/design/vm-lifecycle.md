@@ -4,8 +4,8 @@
 about. It holds the in-memory registry, drives state transitions through
 a `backend.Backend`, enforces the resource pool, and keeps the persisted
 records truthful, including across daemon crashes. This document covers
-the manager, the record model, the backend seam, and the two operations
-that live beside them: clone and rename.
+the manager, the record model, the backend seam, and the operations
+that live beside them: clone, rename and resize.
 
 ## The record
 
@@ -176,7 +176,7 @@ Create and Clone check disk; Start checks cpu and memory. Errors are
 phrased for the user: `pool exhausted: need 2 cpus, 1 free (stop a vm
 or raise pool.cpus)`. `ls -l` prints used/total.
 
-## Clone and rename
+## Clone, rename and resize
 
 **Clone** (`ssh shed cp src dst`). Validate `dst`, check `src` exists
 and is not busy, check disk quota. If `src` is running, **stop it**
@@ -194,6 +194,16 @@ and not `running` or `starting` (the name seeds the MAC and hostname,
 so a running VM cannot be renamed). Rename the VM directory, update the
 record, save. Because the share token is derived from the name, a
 renamed VM has a new share link.
+
+**Resize** (`ssh shed resize vm --cpu N --memory MB`). Under the lock:
+VM exists, not busy, not `running` or `starting` (cpu and memory are
+fixed at `Backend.Start`, so the VM must be stopped). Zero for either
+value keeps the current one; both zero is an error. The new spec must
+pass `Backend.Validate` and each of cpu and memory must fit under its
+pool ceiling on its own, since a VM larger than the pool could never
+start. Free pool capacity is not checked: stopped VMs don't count, and
+Start enforces the pool at the next boot. Update the spec, save. Disk is
+not resizable (growing ext4 would need `resize2fs` in the guest).
 
 ## The backend seam
 
@@ -282,6 +292,8 @@ say so and boot on demand.
   and all `share` fields; `share` itself always present.
 - Stop precondition: `running` with live handle, not busy.
 - Rename precondition: not `running`/`starting`, not busy.
+- Resize precondition: same as rename; cpu and memory each ≤ the pool
+  ceiling; at least one non-zero.
 - Recover: any state other than `stopped`/`error` → `stopped`,
   `last_stop_reason = "daemon restart"`, IP cleared.
 - Pool accounting: disk for all VMs; cpu and memory for

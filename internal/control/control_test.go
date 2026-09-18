@@ -188,3 +188,26 @@ func TestQuotedArgumentsParse(t *testing.T) {
 		t.Fatalf("unexpected error: %s", errOut)
 	}
 }
+
+func TestResizeCommand(t *testing.T) {
+	deps := newDeps(t)
+	run(t, deps, "new box --no-start")
+
+	code, out, _ := run(t, deps, "resize box --cpu 2 --memory 512")
+	if code != 0 || !strings.Contains(out, "vm box: 2 cpus, 512 MB memory") {
+		t.Fatalf("resize: code=%d out=%q", code, out)
+	}
+	rec, _ := deps.Mgr.Get("box")
+	if rec.Spec.CPUs != 2 || rec.Spec.MemoryMB != 512 {
+		t.Fatalf("spec not updated: %+v", rec.Spec)
+	}
+
+	code, _, errOut := run(t, deps, "resize box")
+	if code == 0 || !strings.Contains(errOut, "nothing to change") {
+		t.Fatalf("no flags: code=%d err=%q", code, errOut)
+	}
+	code, _, errOut = run(t, deps, "resize box --disk 20")
+	if code == 0 || !strings.Contains(errOut, "unknown flag") {
+		t.Fatalf("disk flag: code=%d err=%q", code, errOut)
+	}
+}
