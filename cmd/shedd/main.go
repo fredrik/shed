@@ -8,6 +8,8 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
+
+	"github.com/fredrik/shed/internal/version"
 )
 
 func main() {
@@ -16,11 +18,19 @@ func main() {
 		Short:        "shed daemon — local microVMs over ssh",
 		SilenceUsage: true,
 		Args:         cobra.NoArgs,
+		Version:      version.Current().String(),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return serve()
 		},
 	}
-	root.AddCommand(cmdServe(), cmdInstall(), cmdDoctor())
+	root.AddCommand(cmdServe(), cmdInstall(), cmdDoctor(), &cobra.Command{
+		Use:   "version",
+		Short: "Print the version",
+		Args:  cobra.NoArgs,
+		Run: func(cmd *cobra.Command, args []string) {
+			fmt.Fprintf(cmd.OutOrStdout(), "shedd %s\n", version.Current())
+		},
+	})
 	if err := root.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, "shedd:", err)
 		os.Exit(1)
