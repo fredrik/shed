@@ -60,6 +60,19 @@ apt-get install -y --no-install-recommends \
   fzf bat fd-find zoxide tree
 apt-get clean
 
+# gh from GitHub's own apt repo: Ubuntu packages it only as a snap, and
+# there is no snapd in here. It is a second apt pass because fetching the
+# keyring needs the curl and ca-certificates the pass above installed.
+install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
+  -o /etc/apt/keyrings/githubcli-archive-keyring.gpg
+chmod 0644 /etc/apt/keyrings/githubcli-archive-keyring.gpg
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" \
+  > /etc/apt/sources.list.d/github-cli.list
+apt-get update
+apt-get install -y --no-install-recommends gh
+apt-get clean
+
 # Ghostty's terminfo, system-wide. Ghostty's ssh integration otherwise
 # installs it per user over ssh on first connect and then caches the host
 # by name; a VM recreated under the same name would be assumed to have it
