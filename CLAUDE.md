@@ -28,6 +28,9 @@ obvious from the code.
 - Base the branch on `origin/main`, not the local `main` ref, which may
   be behind origin/main or carry other commits.
 - Commit in logical chunks as you go.
+- A change a user of shed would notice (commands, flags, image
+  contents, defaults, kernel) gets a line under `Unreleased` in
+  CHANGELOG.md, with the PR number. Refactors, tests and docs don't.
 
 ## Testing in sandboxed sessions
 
