@@ -39,7 +39,7 @@ GitHub CLI (`gh`), a `dev` user with passwordless sudo, plus mise and uv
 in /usr/local/bin, node 24 via mise, and python 3.14 (uv-managed) as
 dev's default next to the apt `python3`. Claude Code is preinstalled for
 `dev`, so `claude` works on first login — a VM is the natural place to
-let an agent run with root.
+let an agent work with less oversight than you'd give it on your Mac.
 
 You land in zsh with a [starship](https://starship.rs) prompt, history
 suggestions and syntax highlighting as you type, ctrl-r/ctrl-t fuzzy
