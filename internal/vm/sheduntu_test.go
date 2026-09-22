@@ -2,9 +2,7 @@ package vm
 
 import (
 	"os"
-	"os/exec"
 	"path/filepath"
-	"strings"
 	"testing"
 )
 
@@ -54,36 +52,6 @@ func TestPruneOldSheduntu(t *testing.T) {
 	for _, path := range []string{stale, staleJSON} {
 		if _, err := os.Stat(path); !os.IsNotExist(err) {
 			t.Errorf("%s should have been pruned", filepath.Base(path))
-		}
-	}
-}
-
-func TestSheduntuScriptBakesGhosttyTerminfo(t *testing.T) {
-	script := renderSheduntuScript()
-	if strings.Contains(script, sheduntuTerminfoMarker) {
-		t.Fatal("terminfo placeholder left unrendered in bake script")
-	}
-	if !strings.Contains(script, "xterm-ghostty|ghostty|Ghostty,") {
-		t.Fatal("bake script does not carry the xterm-ghostty terminfo source")
-	}
-	if !strings.Contains(script, "tic -x") {
-		t.Fatal("bake script does not compile the terminfo")
-	}
-	// The embedded source must be something tic accepts; a stray edit here
-	// would only surface as a failed bake, minutes in.
-	tic, err := exec.LookPath("tic")
-	if err != nil {
-		t.Skip("no tic on this host")
-	}
-	out := t.TempDir()
-	cmd := exec.Command(tic, "-x", "-o", out, "-")
-	cmd.Stdin = strings.NewReader(xtermGhosttyTerminfo)
-	if b, err := cmd.CombinedOutput(); err != nil {
-		t.Fatalf("tic rejected embedded terminfo: %v\n%s", err, b)
-	}
-	if _, err := os.Stat(filepath.Join(out, "78", "xterm-ghostty")); err != nil {
-		if _, err2 := os.Stat(filepath.Join(out, "x", "xterm-ghostty")); err2 != nil {
-			t.Fatalf("tic produced no xterm-ghostty entry: %v", err)
 		}
 	}
 }

@@ -130,6 +130,10 @@ setopt share_history hist_ignore_all_dups hist_ignore_space
 
 setopt auto_cd interactive_comments no_beep
 
+# Per-user installs land in ~/.local/bin
+typeset -U path
+path=(~/.local/bin $path)
+
 # Completion. -C trusts the cached dump (pre-built in the image) instead of
 # rescanning every directory on the fpath at every login.
 autoload -Uz compinit && compinit -C
@@ -250,6 +254,8 @@ chmod 440 /etc/sudoers.d/dev
 # on the new startup files being correct to install the toolchain.
 su - dev -s /bin/bash -c 'mise install'
 su - dev -s /bin/bash -c 'uv python install --default 3.14 || uv python install 3.14'
+
+su - dev -s /bin/bash -c 'curl -fsSL https://claude.ai/install.sh | bash'
 
 # Build the completion dump at bake time so the first real login pays
 # nothing for it. Best-effort: there is no tty here.
