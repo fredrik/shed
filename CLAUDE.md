@@ -9,7 +9,9 @@ obvious from the code.
 
 - `make build` — builds `bin/shedd` (+ the guest agent) and codesigns it.
   Plain `go build`/`go run` produces a binary that cannot boot VMs
-  (missing the com.apple.security.virtualization entitlement).
+  (missing the com.apple.security.virtualization entitlement). It also
+  injects the version (`git describe`) via ldflags; `bin/shed version`
+  shows client and daemon builds and warns if a stale daemon is running.
 - `make test` — unit tests; builds the linux guest agent first because
   internal/initramfs embeds it (`go test ./...` alone fails on a clean tree).
 - `bin/shedd serve` — foreground daemon (ssh gateway :2222, http :8080).

@@ -18,6 +18,7 @@ import (
 	"github.com/fredrik/shed/internal/config"
 	"github.com/fredrik/shed/internal/httpgate"
 	"github.com/fredrik/shed/internal/store"
+	"github.com/fredrik/shed/internal/version"
 	"github.com/fredrik/shed/internal/vm"
 	"github.com/fredrik/shed/internal/vm/vmspec"
 )
@@ -186,5 +187,21 @@ func TestQuotedArgumentsParse(t *testing.T) {
 	}
 	if !strings.Contains(errOut, "not a valid public key") {
 		t.Fatalf("unexpected error: %s", errOut)
+	}
+}
+
+func TestVersion(t *testing.T) {
+	deps := newDeps(t)
+	code, out, _ := run(t, deps, "version")
+	if code != 0 || !strings.HasPrefix(out, "shedd ") || !strings.Contains(out, "(go") {
+		t.Fatalf("version: code=%d out=%q", code, out)
+	}
+	code, out, _ = run(t, deps, "version --json")
+	if code != 0 {
+		t.Fatal("version --json failed")
+	}
+	var info version.Info
+	if err := json.Unmarshal([]byte(out), &info); err != nil || info.Version == "" || info.Go == "" {
+		t.Fatalf("version --json: %v\n%s", err, out)
 	}
 }

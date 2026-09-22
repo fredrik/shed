@@ -4,12 +4,20 @@
 BIN := bin
 AGENT := internal/initramfs/shedguest_linux_arm64
 
+# Releases are git tags (v0.1.0). Between tags `git describe` yields e.g.
+# v0.1.0-3-g19ad079-dirty; before the first tag VERSION is empty and the
+# binary reports "dev" plus the commit. Override with `make VERSION=...`.
+VERSION ?= $(shell git describe --tags --match 'v*' --dirty 2>/dev/null)
+COMMIT  ?= $(shell git rev-parse --short HEAD 2>/dev/null)$(shell git diff --quiet HEAD 2>/dev/null || echo -dirty)
+VERSIONPKG := github.com/fredrik/shed/internal/version
+LDFLAGS := -X $(VERSIONPKG).Version=$(VERSION) -X $(VERSIONPKG).Commit=$(COMMIT)
+
 .PHONY: build agent test clean kernel
 
 build: agent
-	go build -o $(BIN)/shedd ./cmd/shedd
+	go build -ldflags "$(LDFLAGS)" -o $(BIN)/shedd ./cmd/shedd
 	codesign --entitlements vz.entitlements -f -s - $(BIN)/shedd
-	go build -o $(BIN)/shed ./cmd/shed
+	go build -ldflags "$(LDFLAGS)" -o $(BIN)/shed ./cmd/shed
 
 agent:
 	GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o $(AGENT) ./cmd/shedguest

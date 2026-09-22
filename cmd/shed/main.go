@@ -2,6 +2,8 @@
 // daemon over the control socket and streams the result back. The command
 // surface is whatever the daemon serves — the same cobra tree behind
 // `ssh shed <command>` — so this binary parses nothing and needs no keys.
+// The one exception is `shed version`, which also reports the client's own
+// build (see version.go).
 package main
 
 import (
@@ -26,23 +28,13 @@ func run(args []string) int {
 		return fail("config: %v", err)
 	}
 	sockPath := cfg.ControlSocket()
-	conn, err := net.DialTimeout("unix", sockPath, 5*time.Second)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "shed: daemon not reachable at %s (start it: shedd serve)\n", sockPath)
-		return 1
+	if isVersionCmd(args) {
+		return runVersion(args, func() (*gossh.Client, error) { return dial(sockPath) }, os.Stdout, os.Stderr)
 	}
-	// Trust is the 0600 socket in our own state directory; the daemon's
-	// host key carries no extra information here.
-	sshConn, chans, reqs, err := gossh.NewClientConn(conn, sockPath, &gossh.ClientConfig{
-		User:            "shed",
-		HostKeyCallback: gossh.InsecureIgnoreHostKey(),
-		Timeout:         5 * time.Second,
-	})
+	client, err := dial(sockPath)
 	if err != nil {
-		conn.Close()
-		return fail("handshake: %v", err)
+		return fail("%v", err)
 	}
-	client := gossh.NewClient(sshConn, chans, reqs)
 	defer client.Close()
 
 	sess, err := client.NewSession()
@@ -62,6 +54,26 @@ func run(args []string) int {
 	default:
 		return fail("%v", e)
 	}
+}
+
+// dial connects to the daemon's control socket and completes the ssh
+// handshake. Trust is the 0600 socket in our own state directory; the
+// daemon's host key carries no extra information here.
+func dial(sockPath string) (*gossh.Client, error) {
+	conn, err := net.DialTimeout("unix", sockPath, 5*time.Second)
+	if err != nil {
+		return nil, fmt.Errorf("daemon not reachable at %s (start it: shedd serve)", sockPath)
+	}
+	sshConn, chans, reqs, err := gossh.NewClientConn(conn, sockPath, &gossh.ClientConfig{
+		User:            "shed",
+		HostKeyCallback: gossh.InsecureIgnoreHostKey(),
+		Timeout:         5 * time.Second,
+	})
+	if err != nil {
+		conn.Close()
+		return nil, fmt.Errorf("handshake: %v", err)
+	}
+	return gossh.NewClient(sshConn, chans, reqs), nil
 }
 
 func fail(format string, a ...any) int {
