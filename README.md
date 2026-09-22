@@ -34,10 +34,12 @@ clones the whole machine in a couple of seconds, and
 no GUI and no YAML; the interface is ssh.
 
 The default image is sheduntu: Ubuntu 26.04 with the
-usual tools installed (git, curl, vim, tmux, htop, ripgrep, jq), a `dev`
-user with passwordless sudo, plus mise and uv in /usr/local/bin, node 24
-via mise, and python 3.14 (uv-managed) as dev's default next to the apt
-`python3`.
+usual tools installed (git, curl, vim, tmux, htop, ripgrep, jq), the
+GitHub CLI (`gh`), a `dev` user with passwordless sudo, plus mise and uv
+in /usr/local/bin, node 24 via mise, and python 3.14 (uv-managed) as
+dev's default next to the apt `python3`. Claude Code is preinstalled for
+`dev`, so `claude` works on first login — a VM is the natural place to
+let an agent work with less oversight than you'd give it on your Mac.
 
 You land in zsh with a [starship](https://starship.rs) prompt, history
 suggestions and syntax highlighting as you type, ctrl-r/ctrl-t fuzzy
@@ -75,10 +77,12 @@ One daemon (`shedd`) runs three things:
   through Microsoft's pure-Go `tar2ext4` into a read-only ext4 base disk —
   the rootfs never touches the host filesystem, so no root is needed and
   ownership/setuid/device nodes survive. Each VM adds a sparse writable
-  ext4 data disk (`mke2fs`), joined by overlayfs at boot. The kernel is
-  shed's own build of Linux with the Kata Containers configuration (the
-  one Apple's `container` direct-boots), published as a release asset,
-  fetched once and cached. `kernel/README.md` has the recipe.
+  ext4 data disk (`mke2fs`), joined by overlayfs at boot. New VMs get
+  2 vCPUs, 4 GB of RAM and a 10 GB disk unless `new` says otherwise. The
+  kernel is shed's own build of Linux (6.18 with the Kata Containers
+  configuration, the one Apple's `container` direct-boots), published as
+  a release asset on this repo's `kernel-<version>` tags, fetched once
+  and cached. `kernel/README.md` has the recipe.
 - **HTTP front door** (127.0.0.1:8080). `http://<vm>.shed.localhost:8080`
   proxies to the VM — the smallest `EXPOSE`d port, or `share port`. VMs are
   private by default; `ssh shed share <vm>` prints a signed link,
@@ -107,7 +111,8 @@ If the daemon dies, records reconcile to `stopped` on restart.
 
 - Apple Silicon Mac, macOS 15+
 - Go 1.25+, Homebrew (`brew install e2fsprogs`)
-- A 16 MB one-time kernel download on first `shedd serve`
+- A 16 MB one-time kernel download (from this repo's releases) on first
+  `shedd serve`, and a minute to bake sheduntu on first use
 
 ## Setup
 
@@ -165,9 +170,15 @@ daemon versions and warns when they differ, which is what a stale daemon
 looks like after a rebuild. `bin/shedd --version` works too. To release:
 `git tag v0.1.0 && git push origin v0.1.0`.
 
-State lives in `~/.local/share/shed/` (VM records, disks, keys), caches
-in `~/Library/Caches/shed/` (kernel, base disks by image digest). Serial
-console of each VM: `~/.local/share/shed/vms/<name>/serial.log`.
+State lives in `~/.local/share/shed/` (VM records, disks, keys, optional
+`config.toml`), caches in `~/Library/Caches/shed/` (kernel, base disks by
+image digest). Serial console of each VM:
+`~/.local/share/shed/vms/<name>/serial.log`.
+
+`docs/design/` describes each subsystem (ssh gateway, control plane, VM
+lifecycle, images and storage, guest agent, networking, HTTP front door,
+configuration) in more depth than this README. `CLAUDE.md` holds the
+operational notes for working on shed with a coding agent.
 
 ## Caveats
 
