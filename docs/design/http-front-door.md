@@ -94,9 +94,11 @@ private, 502 not running or nothing listening.
 
 ## Design notes
 
-**Why `*.shed.localhost`.** Browsers resolve any `*.localhost` name to
-loopback without DNS or `/etc/hosts` edits, so no resolver setup is
-needed. curl does not, hence the `--resolve` tip in the README.
+**Why `*.shed.localhost`.** Chrome, Firefox and curl resolve any
+`*.localhost` name to loopback themselves, without DNS or `/etc/hosts`
+edits, so no resolver setup is needed for them. Safari does not: it
+uses the macOS system resolver, which only knows plain `localhost`.
+The README lists the per-VM `/etc/hosts` and dnsmasq workarounds.
 
 **Why HMAC tokens rather than random per-VM secrets stored on the
 record.** No state to persist per VM, the link is stable, and the record

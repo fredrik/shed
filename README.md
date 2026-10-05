@@ -184,8 +184,12 @@ operational notes for working on shed with a coding agent.
 
 - VMs die with the daemon (Virtualization.framework VMs live in-process);
   records reconcile to `stopped` on restart.
-- `*.shed.localhost` resolves in browsers; for curl use
-  `curl --resolve box.shed.localhost:8080:127.0.0.1 …`.
+- `*.shed.localhost` resolves to loopback in Chrome, Firefox and curl,
+  which handle `.localhost` themselves. Safari asks the macOS resolver,
+  which only knows plain `localhost`, so it can't find the host. Add a
+  line per VM to `/etc/hosts` (`127.0.0.1 box.shed.localhost`), or
+  point `/etc/resolver/shed.localhost` at a local dnsmasq with
+  `address=/shed.localhost/127.0.0.1` for a wildcard.
 - Images run under the agent as pid 1 — systemd in the image is not
   executed (ubuntu works fine; `systemctl` does not).
 - No TLS on the front door, no `ssh -R`, no ssh-agent forwarding yet.
