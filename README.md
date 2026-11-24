@@ -7,7 +7,8 @@ a second, managed over ssh, with persistent disks and an HTTP front door.
 ```
 $ ssh box@shed
 shed: creating vm box...
-dev@box:~$
+┌ dev@box ~
+└ ❯
 ```
 
 ## Introduction to shed
@@ -54,6 +55,11 @@ terminal; if yours has a Nerd Font, one command upgrades it:
 starship preset nerd-font-symbols -o ~/.config/starship.toml
 ```
 
+tmux gets the same treatment (`~/.config/tmux/tmux.conf`: mouse, true
+colour, a long scrollback), and Ghostty's terminfo is baked in, so
+`TERM=xterm-ghostty` works without Ghostty's ssh integration installing
+anything.
+
 The image is baked locally the first time you use it: a throwaway VM
 boots upstream `ubuntu:26.04`, runs the recipe, and its rootfs becomes
 the cached base image. Takes about a minute, rebakes whenever the recipe
@@ -78,7 +84,8 @@ One daemon (`shedd`) runs three things:
   the rootfs never touches the host filesystem, so no root is needed and
   ownership/setuid/device nodes survive. Each VM adds a sparse writable
   ext4 data disk (`mke2fs`), joined by overlayfs at boot. New VMs get
-  2 vCPUs, 4 GB of RAM and a 10 GB disk unless `new` says otherwise. The
+  2 vCPUs, 4 GB of RAM and a 10 GB disk unless `new` says otherwise;
+  running VMs draw on a shared pool (see Configuration). The
   kernel is shed's own build of Linux (6.18 with the Kata Containers
   configuration, the one Apple's `container` direct-boots), published as
   a release asset on this repo's `kernel-<version>` tags, fetched once
@@ -126,16 +133,20 @@ bin/shedd doctor     # if something is off
 ## Commands
 
 ```
-ssh shed new [name] [--image ref] [--cpu N] [--memory MB] [--disk GB] [--no-start]
-                                   # default image: sheduntu
+ssh shed new [name] [--image ref] [--cpu N] [--memory MB] [--disk GB]
+             [--autostart] [--no-start] [--json]
+                                 # default image: sheduntu; no name picks one
+                                 # --autostart: boot with the daemon
 ssh shed ls [-l] [--json]
 ssh shed start|stop|restart <vm>...
-ssh shed rm <vm>...
-ssh shed cp <src> <dst>          # instant clone (APFS copy-on-write)
+ssh shed rm <vm>... [--json]
+ssh shed cp <src> <dst>          # instant clone (APFS copy-on-write),
+                                 # started unless --start=false
 ssh shed rename <old> <new>
 ssh shed share <vm>              # signed URL for a private vm
 ssh shed share set-public|set-private <vm>
 ssh shed share port <vm> <port>
+ssh shed share ls <vm>           # visibility and forwarded port
 ssh shed ssh-key ls|add          # add - reads the key from stdin
 ssh shed whoami | doc | browser <vm>
 ssh shed version [--json]        # daemon version
@@ -151,15 +162,42 @@ tree either way. Interactive shells still go over ssh.
 `scp`/`sftp` and `ssh -L` work through the gateway:
 
 ```
-scp file.txt box@shed:/root/
+scp file.txt box@shed:           # lands in the login user's home
 ssh -L 8080:localhost:80 web@shed
 ```
+
+## Configuration
+
+Everything has a default; `~/.local/share/shed/config.toml` overrides it.
+The pool caps what running VMs may use in total — by default all but two
+of the host's cores, half its memory, and 100 GB of data disk.
+
+```toml
+ssh_addr          = "127.0.0.1:2222"
+http_addr         = "127.0.0.1:8080"
+default_image     = "sheduntu"
+default_user      = "dev"
+default_cpus      = 2
+default_memory_mb = 4096
+default_disk_gb   = 10
+
+[pool]
+cpus      = 8
+memory_mb = 16384
+disk_gb   = 100
+```
+
+Two environment variables matter to `shedd`: `SHED_STATE_DIR` moves the
+state directory (keep it short — macOS caps unix socket paths at about
+104 bytes), and `SHED_KERNEL` boots VMs from a kernel Image of your own
+instead of the pinned one.
 
 ## Development
 
 ```
 make test           # unit tests (no VMs, no signing needed)
 make build          # rebuild + codesign
+make kernel         # build the guest kernel in a throwaway VM (kernel/README.md)
 ```
 
 Versions are git tags (`v0.1.0`, semver, `v0.x` while things still move).
