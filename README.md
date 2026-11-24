@@ -168,7 +168,8 @@ dev build reports something like `v0.1.0-3-g19ad079-dirty`, or `dev` plus
 the commit before the first tag. `bin/shed version` prints the client and
 daemon versions and warns when they differ, which is what a stale daemon
 looks like after a rebuild. `bin/shedd --version` works too. To release:
-`git tag v0.1.0 && git push origin v0.1.0`.
+rename the `Unreleased` section of `CHANGELOG.md` to the version and
+date, then `git tag v0.1.0 && git push origin v0.1.0`.
 
 State lives in `~/.local/share/shed/` (VM records, disks, keys, optional
 `config.toml`), caches in `~/Library/Caches/shed/` (kernel, base disks by
